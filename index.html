@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Oxide — a markdown repo workbench</title>
+<style>
+  :root { color-scheme: light dark; }
+  body { font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+         max-width: 42rem; margin: 4rem auto; padding: 0 1.5rem; }
+  h1 { font-size: 2rem; margin-bottom: .25rem; }
+  .sub { opacity: .7; margin-top: 0; }
+  .btn { display: inline-block; margin: 2rem 0 .5rem; padding: .75rem 1.5rem;
+         background: #b7410e; color: #fff; text-decoration: none; border-radius: 6px;
+         font-weight: 600; }
+  .req { opacity: .7; font-size: .9rem; margin-top: 0; }
+  details { margin-top: 2.5rem; border-top: 1px solid rgba(128,128,128,.3); padding-top: 1.5rem; }
+  summary { cursor: pointer; font-weight: 600; }
+  ol { padding-left: 1.25rem; }
+  code { background: rgba(128,128,128,.15); padding: .1em .35em; border-radius: 3px; }
+</style>
+</head>
+<body>
+  <h1>Oxide</h1>
+  <p class="sub">A lean macOS workbench for reading, editing and git-managing markdown repositories.</p>
+
+  <a class="btn" href="https://github.com/Miawousha/oxide-releases/releases/latest">Download for macOS</a>
+  <p class="req">Requires macOS 14 or later on <strong>Apple Silicon</strong>. Intel Macs are not supported.</p>
+
+  <details>
+    <summary>First launch shows a security warning — here's why, and what to do</summary>
+    <p>Oxide is not yet notarized by Apple, so macOS will say it
+    <em>“cannot be checked for malicious software”</em>. The app is signed and every
+    update is cryptographically verified, but Apple's notarization service hasn't
+    vouched for it yet.</p>
+    <ol>
+      <li>Open the downloaded <code>.dmg</code> and drag Oxide to Applications.</li>
+      <li>Try to open it. macOS will refuse.</li>
+      <li>Open <strong>System Settings → Privacy &amp; Security</strong>, scroll to the
+          bottom, and click <strong>Open Anyway</strong>.</li>
+      <li>Confirm. You only do this once.</li>
+    </ol>
+  </details>
+</body>
+</html>
