@@ -1,10 +1,10 @@
 {
-  "version": "0.4.0",
-  "pub_date": "2026-08-08T17:26:54Z",
+  "version": "0.5.0",
+  "pub_date": "2026-08-12T15:51:55Z",
   "platforms": {
     "darwin-aarch64": {
-      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUU2QyVGZGS2NFMEFJNEtzbUVwWHJ6MDNMMjJtZ0xseTZoN0JrM0VjM1I3cUQ3VXpOS0hKYTJiWXJaaUppNzl0cENVdGZxdUx5STlpSU5vY1N6UVBMN1FrZ1EzS3c2alFNPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2MjEwMDA5CWZpbGU6T3hpZGUuYXBwLnRhci5negpvWjRuMElja3hQTEtvVU5Mc0dnd2NKY2xNQjFPZk56TTIvR05wTWFYVXczQS83OU1BQWpLRjA3QUluK2JkSWVRRi9JaWxaaTVNdytpZzZuVFBSckZBUT09Cg==",
-      "url": "https://github.com/Miawousha/oxide-releases/releases/download/v0.4.0/Oxide.app.tar.gz"
+      "signature": "dW50cnVzdGVkIGNvbW1lbnQ6IHNpZ25hdHVyZSBmcm9tIHRhdXJpIHNlY3JldCBrZXkKUlVUU2QyVGZGS2NFMEpEVmswSy8yMjQ3ZmZWekdhWU9qREpqK0JwM2w5ampHOFIxeWJmQXJncG1BOUc0TXZlMlB3OU4xbFdweExlZzRtclRpUEU5QUVaaURxdFI0M3J1YkFvPQp0cnVzdGVkIGNvbW1lbnQ6IHRpbWVzdGFtcDoxNzg2NTQ5OTEwCWZpbGU6T3hpZGUuYXBwLnRhci5negpjdWNlSmh2UklyKy9YOVY5Y0tLaUREYkhTZmU5Tm5oT2I3WGt3MmZvMGF6THB2dHl0UTZSUjZ1THc5M0lPQ3ZRZTFIdmlPdjJYMVdzdi9IWkRucURCQT09Cg==",
+      "url": "https://github.com/Miawousha/oxide-releases/releases/download/v0.5.0/Oxide.app.tar.gz"
     }
   }
 }
