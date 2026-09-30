@@ -3,43 +3,1209 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Oxide — a markdown repo workbench</title>
+<title>Oxide — a quiet place to write markdown</title>
+<meta name="description" content="Oxide is a native Mac app for writing in markdown and keeping it in git: formatting appears as you type while the file stays plain text, documents read like a well-set book, and every change is a diff you review.">
+<meta name="color-scheme" content="light">
+<meta property="og:title" content="Oxide">
+<meta property="og:description" content="A quiet place to write the markdown you keep in git. Native to macOS.">
+<meta property="og:url" content="https://oxide.matricetechnologies.com/">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='100 100 824 824'%3E%3Crect x='100' y='100' width='824' height='824' rx='185' fill='%231a1a1e'/%3E%3Cg fill='none'%3E%3Ccircle cx='512' cy='512' r='310' stroke='%238a3f22' stroke-width='40'/%3E%3Ccircle cx='512' cy='512' r='259' stroke='%23b34a26' stroke-width='42'/%3E%3Ccircle cx='512' cy='512' r='208' stroke='%23c9603a' stroke-width='40'/%3E%3Ccircle cx='512' cy='512' r='161' stroke='%23e08a5e' stroke-width='34'/%3E%3C/g%3E%3C/svg%3E">
 <style>
-  :root { color-scheme: light dark; }
-  body { font: 16px/1.6 -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-         max-width: 42rem; margin: 4rem auto; padding: 0 1.5rem; }
-  h1 { font-size: 2rem; margin-bottom: .25rem; }
-  .sub { opacity: .7; margin-top: 0; }
-  .btn { display: inline-block; margin: 2rem 0 .5rem; padding: .75rem 1.5rem;
-         background: #b7410e; color: #fff; text-decoration: none; border-radius: 6px;
-         font-weight: 600; }
-  .req { opacity: .7; font-size: .9rem; margin-top: 0; }
-  details { margin-top: 2.5rem; border-top: 1px solid rgba(128,128,128,.3); padding-top: 1.5rem; }
-  summary { cursor: pointer; font-weight: 600; }
-  ol { padding-left: 1.25rem; }
-  code { background: rgba(128,128,128,.15); padding: .1em .35em; border-radius: 3px; }
+/* ── Tokens. E-ink: one scheme, on purpose. Paper, ink, hard hairlines, no shadows.
+      The only colour on the page is the mark's oxidation rust. ─────────────── */
+:root {
+  color-scheme: light;
+  --ground: #f6f6f3;
+  --paper: #ffffff;
+  --ink: #121214;
+  --ink-2: #3a3a3f;
+  --muted: #5d5d64;
+  --faint: #8e8e95;
+  --rule: #dcdcd8;
+  --line: #121214;
+  --hover: rgba(0, 0, 0, 0.05);
+  --active: rgba(0, 0, 0, 0.08);
+  --accent: #b34a26;
+  --add: #2f7d32;
+  --del: #b3261e;
+  --mod: #9a6f00;
+  --add-wash: rgba(47, 125, 50, 0.11);
+  --del-wash: rgba(179, 38, 30, 0.09);
+  --sel: rgba(18, 18, 20, 0.09);
+
+  --night: #16171d;
+  --night-raised: #1d1e26;
+  --night-ink: #e8e8ec;
+  --night-muted: #8b8b95;
+  --night-rule: #2b2c36;
+  --night-accent: #e0794a;
+
+  --sans: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --serif: ui-serif, "New York", Georgia, serif;
+  --mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+
+  --wrap: 1200px;
+  --gutter: clamp(16px, 4vw, 48px);
+}
+
+* { box-sizing: border-box; }
+html { -webkit-text-size-adjust: 100%; scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+body {
+  margin: 0; background: var(--ground); color: var(--ink);
+  font: 16px/1.6 var(--sans);
+  -webkit-font-smoothing: antialiased; text-rendering: optimizeLegibility;
+  overflow-x: hidden;
+}
+a { color: inherit; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.wrap { max-width: var(--wrap); margin: 0 auto; padding-left: var(--gutter); padding-right: var(--gutter); }
+.sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+code.i { font: 0.86em var(--mono); }
+
+/* ── Nav ────────────────────────────────────────────────────────── */
+.nav { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 20px 0; position: relative; z-index: 2; }
+.brand { display: inline-flex; align-items: center; gap: 10px; text-decoration: none; }
+.brand svg { width: 28px; height: 28px; display: block; }
+.wordmark { font: 600 19px/1 var(--sans); letter-spacing: -0.4px; }
+.wordmark .mark { color: var(--accent); }
+.nav-links { display: flex; align-items: center; gap: 26px; font-size: 14px; }
+.nav-links a:not(.btn) { color: var(--muted); text-decoration: none; }
+.nav-links a:not(.btn):hover { color: var(--ink); }
+
+/* ── Buttons: ink on paper ──────────────────────────────────────── */
+.btn {
+  display: inline-flex; align-items: center; gap: 10px;
+  padding: 13px 22px; border-radius: 6px;
+  background: var(--ink); color: var(--paper);
+  font: 600 16px/1 var(--sans); text-decoration: none;
+  border: 1px solid var(--ink); cursor: pointer;
+  transition: background 120ms var(--ease), color 120ms var(--ease);
+}
+.btn:hover { background: var(--paper); color: var(--ink); }
+.btn svg { width: 17px; height: 17px; flex: none; }
+.btn.small { padding: 8px 14px; font-size: 13.5px; gap: 8px; }
+.btn.small svg { width: 14px; height: 14px; }
+
+/* ── Hero ───────────────────────────────────────────────────────── */
+.hero { position: relative; overflow: hidden; background: var(--paper); border-bottom: 1px solid var(--line); }
+.hero-top { position: relative; z-index: 1; padding-top: clamp(32px, 6vw, 88px); display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
+.hero-rings { pointer-events: none; justify-self: end; width: 100%; max-width: 480px; }
+.hero-rings svg { display: block; width: 100%; height: auto; }
+h1 {
+  font: 600 clamp(2.6rem, 5.2vw, 4.7rem)/1.0 var(--serif);
+  letter-spacing: -0.03em; margin: 0; text-wrap: balance;
+}
+.hmk {
+  display: inline-block; font: 400 0.52em/1 var(--mono); color: var(--faint);
+  vertical-align: 0.32em; max-width: 2em; overflow: hidden; white-space: pre;
+  transition: max-width 360ms var(--ease), opacity 240ms var(--ease);
+}
+h1 .cursor { height: 0.82em; width: 3px; vertical-align: -0.06em; margin-left: 4px; }
+h1.rendered .hmk { max-width: 0; opacity: 0; }
+h1.rendered .cursor { display: none; }
+h1.rendered:hover .hmk { max-width: 2em; opacity: 1; }
+.hero-sub { margin-top: clamp(24px, 3vw, 36px); display: grid; gap: 28px; }
+.lead { font: 400 clamp(1.1rem, 1.55vw, 1.3rem)/1.55 var(--serif); margin: 0; color: var(--ink-2); max-width: 32em; }
+.cta { justify-self: start; }
+.cta-meta { margin: 14px 0 0; font-size: 13.5px; color: var(--muted); }
+.cta-meta a { color: var(--muted); text-underline-offset: 3px; }
+.cta-meta a:hover { color: var(--ink); }
+
+/* ── The window (a working model of Oxide) ─────────────────────── */
+.stage { position: relative; z-index: 1; margin-top: clamp(40px, 6vw, 72px); padding-bottom: clamp(40px, 5vw, 64px); }
+.win {
+  background: var(--paper); border: 1px solid var(--line); border-radius: 10px; overflow: hidden;
+  display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto minmax(0, 1fr) auto;
+  height: clamp(460px, 46vw, 580px); font: 13px/1.5 var(--sans);
+}
+.win-bar { display: flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-bottom: 1px solid var(--rule); position: relative; }
+.lights { display: flex; gap: 8px; }
+.lights i { width: 11px; height: 11px; border-radius: 50%; display: block; border: 1px solid var(--faint); }
+.win-title { position: absolute; left: 0; right: 0; text-align: center; font-weight: 600; font-size: 12.5px; color: var(--muted); pointer-events: none; }
+.win-body { display: grid; grid-template-columns: 220px minmax(0, 1fr); min-height: 0; }
+.side { border-right: 1px solid var(--rule); padding: 12px 8px; overflow: auto; }
+.side-h, .lbl { font-size: 11.5px; font-weight: 600; letter-spacing: 0.5px; text-transform: uppercase; color: var(--muted); }
+.side-h { padding: 2px 8px 8px; }
+.tree { list-style: none; margin: 0; padding: 0; }
+.row { display: flex; align-items: center; gap: 6px; width: 100%; padding: 2px 8px; border: 0; background: transparent; border-radius: 4px; font: 13px/1.6 var(--sans); text-align: left; cursor: pointer; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row:hover { background: var(--hover); }
+.row[aria-current="true"] { background: var(--active); }
+.row:focus-visible { outline-offset: -2px; }
+.row .tw { width: 12px; flex: none; color: var(--faint); font-size: 10px; text-align: center; }
+.row.dir { cursor: default; }
+.row.dir:hover { background: transparent; }
+.row svg { width: 14px; height: 14px; flex: none; color: var(--muted); }
+.lvl1 { padding-left: 22px; }
+.main { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto minmax(0, 1fr); min-width: 0; min-height: 0; }
+.tabs { display: flex; border-bottom: 1px solid var(--rule); overflow: hidden; }
+.tab { display: flex; align-items: center; gap: 8px; padding: 0 12px 0 14px; height: 33px; border: 0; border-right: 1px solid var(--rule); background: transparent; font-size: 12.5px; color: var(--muted); white-space: nowrap; cursor: pointer; }
+.tab[aria-selected="true"] { color: var(--ink); box-shadow: inset 0 -2px 0 var(--ink); }
+.tab .x { opacity: .45; font-size: 11px; }
+.crumb { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 6px 14px; border-bottom: 1px solid var(--rule); font-size: 11.5px; color: var(--muted); }
+.crumb-path { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.crumb-path b { font-weight: 500; color: var(--ink); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; padding: 2px; gap: 2px; flex: none; }
+.seg button { border: 0; background: transparent; border-radius: 4px; padding: 2px 10px; font-size: 11.5px; font-weight: 600; color: var(--muted); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.seg kbd { font: inherit; opacity: .7; margin-left: 4px; font-weight: 500; }
+.doc { overflow: auto; position: relative; min-height: 0; }
+.doc-inner { max-width: 41rem; margin: 0 auto; padding: 28px 3rem 4rem; }
+.toc { position: absolute; right: 14px; top: 34px; display: grid; gap: 7px; }
+.toc i { display: block; height: 2px; width: 14px; background: var(--rule); border-radius: 2px; }
+.toc i.on { background: var(--ink); }
+.toc i.l2 { width: 9px; margin-left: 5px; }
+
+/* reader face */
+.reader { font: 16px/1.65 var(--serif); color: var(--ink); }
+.reader h1 { font: 600 1.75rem/1.25 var(--serif); letter-spacing: -0.02em; margin: 0.9em 0 0.6em; max-width: none; }
+.reader h2 { font: 600 1.4rem/1.3 var(--serif); letter-spacing: -0.01em; margin: 1.6em 0 0.6em; padding-bottom: 0.25em; border-bottom: 1px solid var(--rule); }
+.reader p, .reader ul, .reader blockquote, .reader table { margin: 0 0 1.1em; }
+.reader ul { padding-left: 1.3em; }
+.reader li { margin: 0.2em 0; }
+.reader blockquote { margin-left: 0; padding-left: 1.1em; box-shadow: inset 1px 0 0 var(--ink); color: var(--ink-2); font-style: italic; }
+.reader code { font: 0.86em var(--mono); background: var(--ground); border: 1px solid var(--rule); border-radius: 4px; padding: 0.05em 0.35em; }
+.reader a.wl { color: var(--accent); text-decoration: none; }
+.reader a.wl:hover { text-decoration: underline; text-underline-offset: 3px; }
+.reader table { border-collapse: collapse; width: 100%; font: 0.92em/1.45 var(--serif); }
+.reader th, .reader td { border: 1px solid var(--rule); padding: 0.4em 0.7em; text-align: left; }
+.reader th { font: 600 12px/1.4 var(--sans); background: var(--ground); }
+.reader sup { font: 600 0.7em var(--sans); color: var(--accent); }
+.reader .fn { font-size: 0.9em; color: var(--muted); border-top: 1px solid var(--rule); padding-top: 0.8em; margin-top: 2em; }
+.fm { font: 12px/1.5 var(--sans); border: 1px solid var(--rule); background: var(--ground); border-radius: 6px; padding: 8px 12px; display: grid; grid-template-columns: max-content 1fr; gap: 2px 16px; margin-bottom: 0.5em; }
+.fm dt { color: var(--muted); }
+.fm dd { margin: 0; }
+
+/* editor face: monospace, live preview; the caret line shows its raw syntax */
+.editor { font: 14.625px/1.7 var(--mono); max-width: 75ch; margin: 0 auto; padding: 22px 2.5rem 4rem; outline: none; color: var(--ink); }
+.ln { min-height: 1.7em; white-space: pre-wrap; word-break: break-word; padding: 0 6px; margin: 0 -6px; border-radius: 3px; cursor: text; position: relative; }
+.ln.caret { background: var(--hover); }
+.ln .mk { color: var(--faint); }
+.ln:not(.caret) .mk.hide { display: none; }
+.ln.h1 { font-size: 1.5em; font-weight: 700; line-height: 1.45; }
+.ln.h2 { font-size: 1.22em; font-weight: 700; }
+.ln.q { color: var(--ink-2); font-style: italic; }
+.ln.fmx { color: var(--muted); background: var(--ground); border-radius: 0; }
+.ln.fmx.first { border-radius: 4px 4px 0 0; }
+.ln.fmx.last { border-radius: 0 0 4px 4px; }
+.ln .b { font-weight: 700; }
+.ln .c { background: var(--ground); border-radius: 3px; }
+.ln .l { color: var(--accent); }
+.cursor { display: inline-block; width: 2px; height: 1.15em; background: var(--accent); vertical-align: -0.18em; margin-left: 1px; animation: blink 1.06s steps(1) infinite; }
+@keyframes blink { 50% { opacity: 0; } }
+@media (prefers-reduced-motion: reduce) { .cursor { animation: none; } }
+
+.statusbar { display: flex; align-items: center; gap: 6px; padding: 4px 10px; border-top: 1px solid var(--rule); font-size: 11.5px; }
+.pill { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--rule); color: var(--ink); background: var(--paper); white-space: nowrap; }
+.pill svg { width: 11px; height: 11px; }
+.pill.muted { color: var(--muted); }
+.statusbar .spacer, .gbar .spacer { flex: 1; }
+
+.proof { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px 24px; margin-top: 16px; font-size: 13.5px; color: var(--muted); }
+.proof code { font: 12.5px var(--mono); color: var(--ink); }
+.proof .same { color: var(--add); font-weight: 600; }
+kbd.k { font: 600 12px var(--sans); border: 1px solid var(--line); border-bottom-width: 2px; border-radius: 4px; padding: 0 5px; color: var(--ink); background: var(--paper); }
+.flash { animation: flash 900ms var(--ease); }
+@keyframes flash { 0% { background: var(--add-wash); } 100% { background: transparent; } }
+@media (prefers-reduced-motion: reduce) { .flash { animation: none; } }
+
+/* ── Chapters ───────────────────────────────────────────────────── */
+.chapter { padding-top: clamp(88px, 12vw, 160px); }
+.ch-grid { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(32px, 6vw, 88px); align-items: start; }
+.ch-grid.flip { grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); }
+.ch-grid.flip .ch-text { order: 2; }
+h2 { font: 600 clamp(2.1rem, 4vw, 3.4rem)/1.04 var(--serif); letter-spacing: -0.026em; margin: 0 0 22px; text-wrap: balance; }
+.ch-text p { margin: 0 0 16px; max-width: 34em; }
+.ch-text p.soft { color: var(--muted); }
+.ch-lead { font: 400 1.2rem/1.55 var(--serif); color: var(--ink-2); }
+.facts { list-style: none; padding: 0; margin: 28px 0 0; border-top: 1px solid var(--line); }
+.facts li { padding: 11px 0; border-bottom: 1px solid var(--rule); font-size: 14.5px; display: grid; grid-template-columns: 9em 1fr; gap: 16px; }
+.facts b { font-weight: 600; }
+.facts span { color: var(--muted); }
+.panel { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font: 13px/1.5 var(--sans); }
+.panel-h { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 16px; border-bottom: 1px solid var(--rule); }
+.caption { font-size: 12.5px; color: var(--muted); margin: 12px 2px 0; }
+.linkbtn { border: 0; background: transparent; padding: 0; color: var(--ink); cursor: pointer; font-size: 12.5px; text-decoration: underline; text-underline-offset: 3px; }
+.linkbtn:hover { color: var(--accent); }
+
+/* writing demo */
+.wr .editor { padding: 20px clamp(16px, 3vw, 32px) 28px; max-width: none; height: 380px; overflow: hidden; }
+.wr-foot { display: flex; align-items: center; gap: 12px; padding: 8px 14px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--muted); min-height: 38px; }
+.wr-foot .step { color: var(--ink); font-weight: 600; }
+.wr-foot .spacer { flex: 1; }
+.ac { position: absolute; left: 0; top: 1.75em; z-index: 3; background: var(--paper); border: 1px solid var(--line); border-radius: 6px; padding: 3px; font: 12.5px/1.4 var(--sans); min-width: 190px; font-style: normal; font-weight: 400; }
+.ac div { padding: 4px 9px; border-radius: 4px; display: flex; justify-content: space-between; gap: 16px; }
+.ac div span { color: var(--faint); }
+.ac div.on { background: var(--ink); color: var(--paper); }
+.ac div.on span { color: var(--rule); }
+
+/* reading demo */
+.rd-head { display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 7fr); gap: clamp(32px, 6vw, 88px); align-items: end; margin-bottom: clamp(32px, 4vw, 48px); }
+.rd-head .ch-lead { margin: 0; }
+.rd { display: grid; grid-template-columns: minmax(0, 1fr) 230px; }
+.rd-bar { grid-column: 1 / -1; display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 8px 16px; border-bottom: 1px solid var(--rule); font-size: 11.5px; color: var(--muted); flex-wrap: wrap; }
+.rd-col { position: relative; padding: clamp(28px, 4vw, 56px) clamp(16px, 3vw, 40px) 48px; min-width: 0; }
+.rd-col .reader { margin: 0 auto; max-width: 560px; transition: max-width 240ms var(--ease); font-size: 17px; }
+.rd-col .reader h1 { font-size: 2.1rem; margin-top: 0; }
+.rd-col .toc { top: clamp(28px, 4vw, 56px); }
+.bl { border-left: 1px solid var(--rule); padding: 20px 16px; font-size: 12.5px; }
+.bl .lbl { display: block; margin-bottom: 10px; }
+.bl a { display: block; text-decoration: none; padding: 6px 0; border-bottom: 1px solid var(--rule); }
+.bl a b { display: block; font-weight: 500; color: var(--ink); }
+.bl a span { color: var(--muted); font: 12.5px/1.45 var(--serif); }
+.bl a:hover b { color: var(--accent); }
+
+/* terminals: ink on paper */
+.term { background: var(--paper); color: var(--ink); border: 1px solid var(--line); border-radius: 10px; font: 13px/1.7 var(--mono); padding: 18px 20px; overflow-x: auto; }
+.term .p { color: var(--faint); }
+.term .er { color: var(--del); font-weight: 600; }
+.term .wa { color: var(--mod); font-weight: 600; }
+.term pre { margin: 0; font: inherit; white-space: pre; }
+
+/* AI demo */
+.ai-doc { padding: 26px clamp(18px, 4vw, 40px) 30px; font: 16.5px/1.7 var(--serif); }
+.ai-doc h3 { font: 600 1.3rem/1.3 var(--serif); margin: 0 0 12px; letter-spacing: -0.01em; }
+.ai-doc p { margin: 0 0 12px; }
+.selp { background: var(--sel); border-radius: 2px; box-decoration-break: clone; -webkit-box-decoration-break: clone; padding: 1px 0; }
+.pop { display: flex; flex-wrap: wrap; align-items: center; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 7px; background: var(--paper); margin: 0 0 14px; width: max-content; max-width: 100%; font: 13px/1 var(--sans); }
+.pop .spark { color: var(--accent); padding: 0 6px 0 5px; display: inline-flex; }
+.pop .spark svg { width: 15px; height: 15px; }
+.pop button { border: 0; background: transparent; padding: 7px 10px; border-radius: 4px; cursor: pointer; font-size: 13px; }
+.pop button:hover { background: var(--hover); }
+.pop button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.pop button[disabled] { opacity: .35; cursor: default; background: transparent; }
+.card { border: 1px solid var(--line); border-radius: 7px; margin-top: 14px; overflow: hidden; }
+.card-body { padding: 12px 14px; font: 15.5px/1.7 var(--serif); min-height: 3.4em; }
+.card-foot { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 8px 10px 8px 14px; border-top: 1px solid var(--rule); font: 12px/1.4 var(--sans); color: var(--muted); }
+.card-foot .acts { display: flex; gap: 6px; }
+del.w { background: var(--del-wash); color: var(--del); text-decoration: line-through; text-decoration-thickness: 1px; border-radius: 2px; }
+ins.w { background: var(--add-wash); color: var(--add); text-decoration: none; border-radius: 2px; }
+del.w + ins.w { margin-left: 3px; }
+.note { font: 12.5px/1.5 var(--sans); color: var(--muted); display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 12px; }
+.mini { border: 1px solid var(--line); background: var(--paper); border-radius: 5px; padding: 4px 12px; font-size: 12.5px; cursor: pointer; }
+.mini:hover { background: var(--hover); }
+.mini.primary { background: var(--ink); color: var(--paper); }
+.mini.primary:hover { background: var(--ink-2); }
+.mini[disabled] { opacity: .35; cursor: default; }
+.mini .spk { width: 12px; height: 12px; vertical-align: -1px; margin-right: 3px; color: var(--accent); }
+
+/* git demo */
+.gsec { padding: 10px 8px 6px; border-bottom: 1px solid var(--rule); }
+.gsec-h { padding: 2px 8px 6px; display: flex; justify-content: space-between; }
+.gfile { display: flex; align-items: center; gap: 10px; padding: 3px 8px; border-radius: 4px; }
+.gfile:hover { background: var(--hover); }
+.gfile.sel { background: var(--active); }
+.gfile .badge { font: 600 11px/1 var(--mono); color: var(--mod); width: 12px; }
+.gfile .path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; cursor: pointer; }
+.gfile .path span { color: var(--muted); }
+.gempty { padding: 4px 8px 6px; color: var(--muted); font-size: 12.5px; }
+.gdiff { padding: 14px 16px; font: 15px/1.7 var(--serif); border-bottom: 1px solid var(--rule); }
+.gdiff .hunk-h { font: 11.5px/1.4 var(--sans); color: var(--muted); display: flex; justify-content: space-between; align-items: center; margin-bottom: 6px; }
+.gcommit { padding: 12px 16px 14px; display: grid; gap: 8px; }
+.gcommit textarea { width: 100%; resize: none; height: 58px; border: 1px solid var(--rule); border-radius: 5px; background: var(--paper); color: var(--ink); font: 13px/1.5 var(--sans); padding: 7px 9px; }
+.gcommit textarea:focus { outline: none; border-color: var(--ink); }
+.gcommit .acts { display: flex; gap: 6px; align-items: center; }
+.gcommit .acts .grow { flex: 1; font-size: 12px; color: var(--muted); }
+.gbar { display: flex; align-items: center; gap: 6px; padding: 6px 10px; border-top: 1px solid var(--rule); font-size: 11.5px; min-height: 36px; }
+.gbar .log { color: var(--muted); }
+.sync-state { color: var(--add); font-weight: 600; }
+
+/* map */
+.lens { background: var(--paper); border: 1px solid var(--line); border-radius: 10px; margin-top: 22px; overflow: hidden; }
+.lens svg { display: block; width: 100%; height: auto; }
+.lens .node rect { fill: var(--paper); stroke: var(--ink); }
+.lens .node text { fill: var(--ink); font: 12px var(--sans); }
+.lens .node.focus rect { fill: var(--ink); }
+.lens .node.focus text { fill: var(--paper); font-weight: 600; }
+.lens .node.orphan rect { stroke-dasharray: 3 3; stroke: var(--faint); }
+.lens .node.orphan text { fill: var(--muted); }
+.lens .edge { stroke: var(--ink); stroke-width: 1; fill: none; }
+.lens .elabel { fill: var(--muted); font: italic 11px var(--serif); }
+.health { display: flex; flex-wrap: wrap; gap: 6px; padding: 12px 14px; border-top: 1px solid var(--rule); font-size: 12.5px; }
+.health span { border: 1px solid var(--rule); border-radius: 999px; padding: 2px 10px; color: var(--muted); }
+.health b { color: var(--ink); font-weight: 600; }
+.two { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(40px, 6vw, 88px); margin-top: clamp(40px, 5vw, 56px); }
+h3 { font: 600 1.45rem/1.2 var(--serif); letter-spacing: -0.015em; margin: 0 0 10px; }
+
+/* lean */
+.spec { margin: 0; border-top: 1px solid var(--line); }
+.spec-row { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 8px 24px; padding: 18px 0 16px; border-bottom: 1px solid var(--rule); align-items: end; }
+.spec-row dt { font-size: 14.5px; }
+.spec-row dt span { display: block; color: var(--muted); font-size: 12.5px; margin-top: 2px; }
+.spec-row dd { margin: 0; text-align: right; font: 600 clamp(1.8rem, 3vw, 2.4rem)/1 var(--serif); letter-spacing: -0.02em; font-variant-numeric: tabular-nums; }
+.spec-row dd small { font: 500 13px var(--sans); color: var(--muted); letter-spacing: 0; margin-left: 4px; }
+.meter { grid-column: 1 / -1; height: 3px; background: var(--rule); position: relative; }
+.meter i { position: absolute; inset: 0 auto 0 0; background: var(--ink); min-width: 3px; }
+.spec-note { font-size: 12.5px; color: var(--muted); margin: 14px 0 0; }
+.never { list-style: none; padding: 0; margin: 28px 0 0; }
+.never li { padding: 15px 0; border-bottom: 1px solid var(--rule); display: grid; grid-template-columns: 7em 1fr; gap: 16px; align-items: baseline; }
+.never li:first-child { border-top: 1px solid var(--line); }
+.never b { font: 600 1.12rem/1.3 var(--serif); }
+.never span { color: var(--muted); font-size: 14.5px; }
+
+/* ── Install (the one dark band) ────────────────────────────────── */
+.install { background: var(--night); color: var(--night-ink); margin-top: clamp(88px, 12vw, 160px); padding: clamp(72px, 10vw, 128px) 0 clamp(56px, 8vw, 96px); position: relative; overflow: hidden; }
+.rings { position: absolute; right: -14vw; top: 50%; width: min(64vw, 820px); transform: translateY(-50%); pointer-events: none; }
+.rings svg { width: 100%; height: auto; display: block; }
+.install .wrap { position: relative; }
+.install h2 { color: var(--night-ink); max-width: 12em; }
+.install .lead { color: var(--night-muted); max-width: 30em; margin-bottom: 28px; }
+.install .btn { background: var(--night-accent); color: #16171d; border-color: var(--night-accent); }
+.install .btn:hover { background: transparent; color: var(--night-accent); }
+.install .cta-meta, .install .cta-meta a { color: var(--night-muted); }
+.install-grid { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: clamp(32px, 5vw, 72px); margin-top: clamp(56px, 8vw, 88px); max-width: 880px; }
+.install h3 { font: 600 11.5px/1.4 var(--sans); letter-spacing: 0.6px; text-transform: uppercase; color: var(--night-muted); margin: 0 0 14px; }
+.steps { margin: 0; padding: 0; list-style: none; counter-reset: s; }
+.steps li { counter-increment: s; position: relative; padding: 0 0 14px 34px; font-size: 14.5px; }
+.steps li::before { content: counter(s); position: absolute; left: 0; top: 1px; width: 22px; height: 22px; border-radius: 50%; border: 1px solid var(--night-rule); font: 600 11.5px/21px var(--sans); text-align: center; color: var(--night-muted); }
+.steps b { font-weight: 600; }
+.reqs { list-style: none; margin: 0; padding: 0; border-top: 1px solid var(--night-rule); }
+.reqs li { display: grid; grid-template-columns: 7.5em 1fr; gap: 12px; padding: 10px 0; border-bottom: 1px solid var(--night-rule); font-size: 14px; }
+.reqs li b { font-weight: 600; }
+.reqs li span { color: var(--night-muted); }
+.why { color: var(--night-muted); font-size: 13.5px; margin: 6px 0 0; max-width: 34em; }
+.upd { display: inline-flex; align-items: center; gap: 10px; margin-top: 18px; padding: 7px 8px 7px 14px; border: 1px solid var(--night-rule); background: var(--night-raised); border-radius: 999px; font-size: 13px; }
+.upd span { border-radius: 999px; padding: 4px 12px; background: var(--night-accent); color: #16171d; font-weight: 600; font-size: 12.5px; }
+footer { background: var(--night); color: var(--night-muted); border-top: 1px solid var(--night-rule); font-size: 13px; }
+footer .wrap { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px 32px; padding-top: 22px; padding-bottom: 28px; }
+footer a { color: var(--night-muted); text-underline-offset: 3px; }
+footer a:hover { color: var(--night-ink); }
+footer .links { display: flex; gap: 22px; flex-wrap: wrap; }
+
+/* ── Responsive ─────────────────────────────────────────────────── */
+@media (max-width: 1000px) {
+  .hero-top, .ch-grid, .ch-grid.flip, .two, .install-grid, .rd-head { grid-template-columns: minmax(0, 1fr); }
+  .hero-rings { order: -1; justify-self: start; max-width: 200px; }
+  .ch-grid.flip .ch-text { order: 0; }
+  .rd { grid-template-columns: minmax(0, 1fr); }
+  .bl { border-left: 0; border-top: 1px solid var(--rule); }
+  .rings { opacity: 0.3; right: -30vw; }
+}
+@media (max-width: 760px) {
+  .nav-links a:not(.btn) { display: none; }
+  .hero-rings { max-width: 132px; }
+  .win { height: 480px; }
+  .win-body { grid-template-columns: minmax(0, 1fr); }
+  .side { display: none; }
+  .doc-inner { padding: 20px 20px 3rem; }
+  .editor { padding: 18px 16px 3rem; font-size: 13px; }
+  .wr .editor { height: 400px; font-size: 12.5px; }
+  .toc { display: none; }
+  .reader { font-size: 15px; }
+  .rd-col .reader { font-size: 16px; }
+  .facts li, .never li, .reqs li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+  .spec-row { grid-template-columns: minmax(0, 1fr) auto; }
+  .seg kbd { display: none; }
+  .term { font-size: 11.5px; padding: 14px; }
+  .lens .node text { font-size: 15px; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition-duration: 0ms !important; } }
 </style>
 </head>
 <body>
-  <h1>Oxide</h1>
-  <p class="sub">A lean macOS workbench for reading, editing and git-managing markdown repositories.</p>
+<!--
+THESIS: Oxide is a writing room first. The page is paper and ink, like the page you write on, and every chapter proves one rule with a working piece of the app. Refuses the dark-dev-tool landing and the feature grid.
+OWN-WORLD: E-ink: white paper, black ink, 1px ink hairlines, no shadows, no fills but ink. New York for anything read, system sans for chrome, SF Mono only for markdown source and shell output. The only colour is the mark's oxidation rust: the rings, links, the caret. One dark band, the icon's charcoal, closes the page.
+STORY: A writer sees the headline render from raw markdown, watches a draft being written, reads it like a book, sees AI arrive as a diff and git as three clicks, reads the numbers, downloads.
+FIRST VIEWPORT: Oxidation rings bleeding off the top right; the headline typed as `# …` with a caret, rendering in place; lead and ink download button beneath; the working window below.
+FORM: principles-as-proof, #4 of 7; seed 162a36f1. Revised after owner review 2026-09-30: e-ink, writing first.
+FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md
+-->
 
-  <a class="btn" href="https://github.com/Miawousha/oxide-releases/releases/latest">Download for macOS</a>
-  <p class="req">Requires macOS 14 or later on <strong>Apple Silicon</strong>. Intel Macs are not supported.</p>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <symbol id="i-down" viewBox="0 0 20 20"><path d="M10 3v10m0 0-4-4m4 4 4-4M4 16.5h12" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+    <symbol id="i-spark" viewBox="0 0 20 20"><path d="M10 2.5c.5 3.6 2 5.9 6.5 7.5-4.5 1.6-6 3.9-6.5 7.5-.5-3.6-2-5.9-6.5-7.5 4.5-1.6 6-3.9 6.5-7.5Z" fill="currentColor"/></symbol>
+    <symbol id="i-branch" viewBox="0 0 16 16"><path d="M5 3v10M5 13a1.6 1.6 0 1 0 0-.01M5 3a1.6 1.6 0 1 0 0 .01M11 5a1.6 1.6 0 1 0 0-.01M11 6.6c0 3-6 2.4-6 5" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></symbol>
+    <symbol id="i-doc" viewBox="0 0 16 16"><path d="M4 1.8h5.2L12.5 5v9.2H4Z M9 1.8V5.2h3.4" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-dir" viewBox="0 0 16 16"><path d="M1.8 4.2h4.3l1.4 1.6h6.7v7.4H1.8Z" fill="none" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></symbol>
+    <symbol id="i-gear" viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.2" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></symbol>
+    <symbol id="i-icon" viewBox="100 100 824 824"><rect x="100" y="100" width="824" height="824" rx="185" fill="#1a1a1e"/><g fill="none"><circle cx="512" cy="512" r="310" stroke="#8a3f22" stroke-width="40"/><circle cx="512" cy="512" r="259" stroke="#b34a26" stroke-width="42"/><circle cx="512" cy="512" r="208" stroke="#c9603a" stroke-width="40"/><circle cx="512" cy="512" r="161" stroke="#e08a5e" stroke-width="34"/></g></symbol>
+    <symbol id="i-rings" viewBox="0 0 1024 1024"><g fill="none"><circle cx="512" cy="512" r="470" stroke="#5a2a17" stroke-width="40"/><circle cx="512" cy="512" r="400" stroke="#8a3f22" stroke-width="40"/><circle cx="512" cy="512" r="330" stroke="#b34a26" stroke-width="42"/><circle cx="512" cy="512" r="262" stroke="#c9603a" stroke-width="40"/><circle cx="512" cy="512" r="200" stroke="#e08a5e" stroke-width="34"/></g></symbol>
+  </defs>
+</svg>
 
-  <details>
-    <summary>First launch shows a security warning — here's why, and what to do</summary>
-    <p>Oxide is not yet notarized by Apple, so macOS will say it
-    <em>“cannot be checked for malicious software”</em>. The app is signed and every
-    update is cryptographically verified, but Apple's notarization service hasn't
-    vouched for it yet.</p>
-    <ol>
-      <li>Open the downloaded <code>.dmg</code> and drag Oxide to Applications.</li>
-      <li>Try to open it. macOS will refuse.</li>
-      <li>Open <strong>System Settings → Privacy &amp; Security</strong>, scroll to the
-          bottom, and click <strong>Open Anyway</strong>.</li>
-      <li>Confirm. You only do this once.</li>
-    </ol>
-  </details>
+<main id="top">
+<section class="hero" aria-labelledby="hero-h">
+  <header class="wrap">
+    <nav class="nav" aria-label="Primary">
+      <a class="brand" href="#top" aria-label="Oxide home"><svg aria-hidden="true"><use href="#i-icon"/></svg><span class="wordmark"><span class="mark">O</span>xide</span></a>
+      <div class="nav-links">
+        <a href="#write">Writing</a>
+        <a href="#read">Reading</a>
+        <a href="#ai">AI</a>
+        <a href="#git">Git</a>
+        <a class="btn small" data-dl href="https://github.com/Miawousha/oxide-releases/releases/latest"><svg aria-hidden="true"><use href="#i-down"/></svg>Download</a>
+      </div>
+    </nav>
+  </header>
+
+  <div class="wrap hero-top">
+   <div>
+    <h1 id="hero-h"><span class="hmk" aria-hidden="true"># </span>A quiet place to write the markdown you keep in git.<span class="cursor" aria-hidden="true"></span></h1>
+    <div class="hero-sub">
+      <p class="lead">Oxide is a Mac app for writing in markdown. Formatting appears as you type while the file stays plain text. Documents read like a well-set book. And every change, yours or Claude’s, is a diff you review before it counts.</p>
+      <div class="cta">
+        <a class="btn" data-dl href="https://github.com/Miawousha/oxide-releases/releases/latest"><svg aria-hidden="true"><use href="#i-down"/></svg>Download for Mac</a>
+        <p class="cta-meta">Version <span data-ver>0.7.0</span> · <span data-size>12.2 MB</span> · macOS 14+ on Apple Silicon<br><a href="#install">First launch needs one extra click</a></p>
+      </div>
+    </div>
+   </div>
+   <div class="hero-rings" aria-hidden="true"><svg viewBox="0 0 1024 1024"><use href="#i-rings"/></svg></div>
+  </div>
+
+  <div class="wrap stage">
+    <div class="win" id="win" role="group" aria-label="A working model of the Oxide window on a sample notebook">
+      <div class="win-bar"><div class="lights" aria-hidden="true"><i></i><i></i><i></i></div><div class="win-title">notebook</div></div>
+      <div class="win-body">
+        <aside class="side" aria-label="Files"><div class="side-h">notebook</div><ul class="tree" id="tree"></ul></aside>
+        <div class="main">
+          <div class="tabs" role="tablist" id="tabs"></div>
+          <div class="crumb">
+            <div class="crumb-path" id="crumb"></div>
+            <div class="seg" role="group" aria-label="Mode">
+              <button type="button" id="m-read" aria-pressed="true">Read</button>
+              <button type="button" id="m-edit" aria-pressed="false">Edit<kbd>⌘E</kbd></button>
+            </div>
+          </div>
+          <div class="doc" id="doc"><div class="toc" id="toc" aria-hidden="true"></div><div id="face"></div></div>
+        </div>
+      </div>
+      <div class="statusbar">
+        <span class="pill"><svg aria-hidden="true"><use href="#i-branch"/></svg>main</span>
+        <span class="pill">● 0</span>
+        <span class="pill"><svg aria-hidden="true" style="color:var(--accent)"><use href="#i-spark"/></svg>AI</span>
+        <span class="spacer"></span>
+        <span class="pill muted" aria-label="Settings"><svg aria-hidden="true"><use href="#i-gear"/></svg></span>
+      </div>
+    </div>
+    <div class="proof" aria-live="polite">
+      <span>A working model on a sample notebook. Press <kbd class="k">⌘E</kbd> or use the toggle.</span>
+      <span id="bytes">On disk: <code id="b-path">—</code> · <code id="b-size">—</code> · sha-256 <code id="b-sha">—</code> <span class="same" id="b-same"></span></span>
+    </div>
+  </div>
+</section>
+
+<!-- ── Write ─────────────────────────────────────────────────────── -->
+<section class="chapter wrap" id="write" aria-labelledby="write-h">
+  <div class="ch-grid">
+    <div class="ch-text">
+      <h2 id="write-h">Write, don’t format.</h2>
+      <p class="ch-lead">You type markdown and formatting appears as you go. The line you’re on shows its raw syntax; leave it and it renders.</p>
+      <p>Lists continue when you press Enter. <code class="i">[[</code> suggests the pages you already have. Paste an image and it lands in <code class="i">assets/</code>, linked. Tables edit as a grid. And the file on disk is the plain text you typed, byte for byte.</p>
+      <ul class="facts">
+        <li><b>Shortcuts</b><span>⌘B, ⌘I, ⌘L for a link, ⌥⌘1–3 for headings. Every action is in ⌘K.</span></li>
+        <li><b>Saving</b><span>Automatic after half a second of quiet, written atomically. There is no Save dialog to forget.</span></li>
+        <li><b>Outside edits</b><span>If another tool changes the file under you, Oxide asks: keep mine, take disk, or view the diff.</span></li>
+      </ul>
+    </div>
+    <div>
+      <div class="panel wr">
+        <div class="panel-h"><span class="lbl">drafts / letter-to-a-new-writer.md</span><span class="lbl">Edit</span></div>
+        <div class="editor" id="wr-ed" aria-hidden="true"></div>
+        <div class="wr-foot"><span class="step" id="wr-step">Writing</span><span id="wr-sub"></span><span class="spacer"></span><button class="linkbtn" type="button" id="wr-play">Replay</button></div>
+      </div>
+      <p class="caption">A writing session, replayed in the page.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Read ──────────────────────────────────────────────────────── -->
+<section class="chapter wrap" id="read" aria-labelledby="read-h">
+  <div class="rd-head">
+    <h2 id="read-h" style="margin:0">Read it like a book.</h2>
+    <p class="ch-lead">Reading is where Oxide opens, not a preview pane. New York set at a real measure, headings you can navigate from the margin, and every page that links here, listed beside it.</p>
+  </div>
+  <div class="panel">
+    <div class="rd">
+      <div class="rd-bar">
+        <span>notebook / essays / <b style="color:var(--ink);font-weight:500">slow-tools.md</b></span>
+        <div class="seg" role="group" aria-label="Text width">
+          <button type="button" data-w="560" aria-pressed="true">Narrow</button>
+          <button type="button" data-w="618" aria-pressed="false">Comfortable</button>
+          <button type="button" data-w="752" aria-pressed="false">Wide</button>
+        </div>
+      </div>
+      <div class="rd-col">
+        <div class="toc" aria-hidden="true"><i class="on"></i><i class="l2"></i><i class="l2"></i></div>
+        <article class="reader" id="rd-article">
+          <h1>Slow tools</h1>
+          <p>A good tool is one you stop noticing. It opens before you finish reaching for it, stays out of the way while you work, and never leaves you wondering what it did to your words.</p>
+          <p>Most writing software fails the last test. It keeps a second copy of your text in a format of its own, and the file you think you own is an export. The day the software changes, so does your work.<sup>1</sup></p>
+          <h2>What a slow tool keeps</h2>
+          <table>
+            <thead><tr><th>Kept</th><th>Where</th></tr></thead>
+            <tbody>
+              <tr><td>The words</td><td>A plain <code>.md</code> file you can open anywhere</td></tr>
+              <tr><td>Every revision</td><td>Git, one commit at a time</td></tr>
+              <tr><td>How pages connect</td><td>Links in the text itself</td></tr>
+            </tbody>
+          </table>
+          <blockquote>Write as if the tool will be gone in ten years. It probably will; the file will not.</blockquote>
+          <h2>Why it matters now</h2>
+          <p>Agents read and write these files too. A format both a person and a model can read, with a history both can see, is the only kind of shared document that stays honest.</p>
+          <p class="fn">1. The file is the source of truth. Everything else is a view of it.</p>
+        </article>
+      </div>
+      <aside class="bl" aria-label="Backlinks">
+        <span class="lbl">Backlinks</span>
+        <a href="#read"><b>plain-text.md</b><span>“…next, read slow tools.”</span></a>
+        <a href="#read"><b>reading-list.md</b><span>“…slow tools, on choosing an app.”</span></a>
+        <a href="#read"><b>letter-to-a-new-writer.md</b><span>“…link, don’t repeat: slow tools.”</span></a>
+      </aside>
+    </div>
+  </div>
+  <p class="caption">The three widths are Oxide’s own: 72, 80 and 95 characters. Pinch or ⌘= to zoom, and the column grows with the type.</p>
+</section>
+
+<!-- ── AI ────────────────────────────────────────────────────────── -->
+<section class="chapter wrap" id="ai" aria-labelledby="ai-h">
+  <div class="ch-grid flip">
+    <div class="ch-text">
+      <h2 id="ai-h">AI proposes. You dispose.</h2>
+      <p class="ch-lead">Select a passage and ask for a rewrite. The answer streams in as a diff over your own words, and nothing changes until you accept it.</p>
+      <p>Press ⌘J and Claude continues from your cursor as faint text you can take or ignore. The repo agent works at a larger scale: it answers with file-and-line citations, and its edits land in your working tree as ordinary changes, reviewed in the same git panel as yours.</p>
+      <ul class="facts">
+        <li><b>Engine</b><span>The Claude Code CLI you already use. No API key, no second bill; Oxide never holds a token.</span></li>
+        <li><b>Control</b><span>One switch turns AI off everywhere, another per repository. Everything else works without it.</span></li>
+      </ul>
+    </div>
+    <div>
+      <div class="panel">
+        <div class="panel-h"><span class="lbl">essays / plain-text.md</span><span class="lbl">Edit</span></div>
+        <div class="ai-doc">
+          <h3>On plain text</h3>
+          <div class="pop" role="toolbar" aria-label="Rewrite selection">
+            <span class="spark" aria-hidden="true"><svg><use href="#i-spark"/></svg></span>
+            <button type="button" data-act="improve" aria-pressed="false">Improve</button>
+            <button type="button" data-act="tighten" aria-pressed="false">Tighten</button>
+            <button type="button" data-act="expand" aria-pressed="false">Expand</button>
+            <button type="button" data-act="grammar" aria-pressed="false">Fix grammar</button>
+          </div>
+          <p><span class="selp" id="ai-sel"></span></p>
+          <div class="card" id="ai-card" hidden>
+            <div class="card-body" id="ai-diff" aria-live="polite"></div>
+            <div class="card-foot"><span id="ai-state">Streaming from Claude Code…</span><span class="acts"><button class="mini" type="button" id="ai-reject">Reject</button><button class="mini primary" type="button" id="ai-accept">Accept</button></span></div>
+          </div>
+          <div class="note" id="ai-note">Pick a rewrite above. <span>Illustrative responses, written for this page.</span></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<!-- ── Git ───────────────────────────────────────────────────────── -->
+<section class="chapter wrap" id="git" aria-labelledby="git-h">
+  <div class="ch-grid">
+    <div class="ch-text">
+      <h2 id="git-h">Git, for people who write.</h2>
+      <p class="ch-lead">Every draft is on the record, and committing feels as light as saving.</p>
+      <p>A status pill shows your branch and what changed. Changes open as word-level diffs tuned for prose, not line noise. Stage a file or a single passage, let AI draft the message from what you staged, commit, then sync: fetch, rebase, push.</p>
+      <ul class="facts">
+        <li><b>History</b><span>Every version of a page, across renames. Restoring one is a new change, never a rewrite.</span></li>
+        <li><b>Conflicts</b><span>Resolved in the app, one passage at a time. Abort puts every byte back.</span></li>
+        <li><b>Auth</b><span>Left to your system git. Oxide never sees a credential.</span></li>
+      </ul>
+      <p class="soft" style="margin-top:22px">Try it: stage, draft, commit, sync.</p>
+    </div>
+    <div>
+      <div class="panel" id="git-panel">
+        <div class="panel-h"><span class="lbl">Git</span><span class="lbl" id="g-count"></span></div>
+        <div class="gsec"><div class="gsec-h lbl"><span>Staged</span><span id="g-sn"></span></div><div id="g-staged"></div></div>
+        <div class="gsec"><div class="gsec-h lbl"><span>Changes</span><span id="g-un"></span></div><div id="g-unstaged"></div></div>
+        <div class="gdiff" id="g-diff"></div>
+        <div class="gcommit">
+          <label class="sr-only" for="g-msg">Commit message</label>
+          <textarea id="g-msg" placeholder="Commit message"></textarea>
+          <div class="acts">
+            <button class="mini" type="button" id="g-draft"><svg class="spk" aria-hidden="true"><use href="#i-spark"/></svg>Draft</button>
+            <span class="grow" id="g-hint"></span>
+            <button class="mini primary" type="button" id="g-commit">Commit</button>
+          </div>
+        </div>
+        <div class="gbar">
+          <span class="pill"><svg aria-hidden="true"><use href="#i-branch"/></svg>main</span>
+          <span class="pill" id="g-pill">● 2</span>
+          <span class="log" id="g-log"></span>
+          <span class="spacer"></span>
+          <button class="mini" type="button" id="g-sync" disabled>Sync</button>
+        </div>
+      </div>
+      <p class="caption"><button class="linkbtn" type="button" id="g-reset">Start over</button></p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Map + CLI ─────────────────────────────────────────────────── -->
+<section class="chapter wrap" id="map" aria-labelledby="map-h">
+  <div class="rd-head" style="margin-bottom:0">
+    <h2 id="map-h" style="margin:0">Your notebook is a map.</h2>
+    <p class="ch-lead">Folders, links, wikilinks and frontmatter already describe a graph. Oxide reads it live, so the map can never disagree with the text.</p>
+  </div>
+  <div class="two">
+    <div>
+      <h3>Drill down, not a hairball</h3>
+      <p style="color:var(--muted);margin:0">From types, to collections with frontmatter as columns, to one page and its neighbours. Orphans and broken links show up as signals that jump straight to the fix.</p>
+      <div class="lens">
+        <svg viewBox="0 0 520 300" role="img" aria-label="Neighbourhood of the essay plain-text: linked from the README, links on to slow-tools, cited by the reading list and by a draft; one orphan page">
+          <path class="edge" d="M260 150 L118 70"/><path class="edge" d="M260 150 L410 66"/><path class="edge" d="M260 150 L106 232"/><path class="edge" d="M260 150 L420 234"/>
+          <text class="elabel" x="202" y="104">links here</text>
+          <text class="elabel" x="318" y="100" text-anchor="end">next</text>
+          <text class="elabel" x="202" y="203">cites</text>
+          <text class="elabel" x="322" y="203" text-anchor="end">cites</text>
+          <g class="node focus"><rect x="186" y="132" width="148" height="36" rx="5"/><text x="260" y="155" text-anchor="middle">plain-text</text></g>
+          <g class="node"><rect x="60" y="52" width="116" height="34" rx="5"/><text x="118" y="74" text-anchor="middle">README</text></g>
+          <g class="node"><rect x="350" y="48" width="120" height="34" rx="5"/><text x="410" y="70" text-anchor="middle">slow-tools</text></g>
+          <g class="node"><rect x="40" y="215" width="132" height="34" rx="5"/><text x="106" y="237" text-anchor="middle">reading-list</text></g>
+          <g class="node"><rect x="330" y="217" width="180" height="34" rx="5"/><text x="420" y="239" text-anchor="middle">letter-to-a-new-writer</text></g>
+          <g class="node orphan"><rect x="206" y="254" width="108" height="30" rx="5"/><text x="260" y="273" text-anchor="middle">old-outline</text></g>
+        </svg>
+        <div class="health"><span><b>1</b> orphan</span><span><b>1</b> broken link</span><span><b>2</b> drafts missing <code class="i">status</code></span></div>
+      </div>
+    </div>
+    <div>
+      <h3>The same core, for agents</h3>
+      <p style="color:var(--muted);margin:0">Oxide bundles <code class="i">oxide</code>, a command-line tool for the agents that maintain your notebook: structure queries, a lint with exit codes fit for CI, and renames that rewrite every inbound link.</p>
+      <div class="term" style="margin-top:22px" role="img" aria-label="Terminal session using the oxide command">
+<pre><span class="p">$</span> oxide check
+<span class="er">error</span> broken_link notes/reading-list.md 7
+      link target does not resolve: elements-of-style.md
+<span class="wa">warn</span>  orphan      drafts/old-outline.md
+      nothing links or relates to this document
+<span class="p">$</span> echo $?
+1
+<span class="p">$</span> oxide backlinks essays/plain-text.md
+README.md
+drafts/letter-to-a-new-writer.md
+notes/reading-list.md
+<span class="p">$</span> oxide mv essays/plain-text.md essays/on-plain-text.md
+essays/on-plain-text.md
+README.md
+drafts/letter-to-a-new-writer.md
+notes/reading-list.md</pre>
+      </div>
+      <p class="caption">Output from a sample notebook. Write commands print every file they change, so <code class="i">| xargs git add</code> is the whole story.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Lean ──────────────────────────────────────────────────────── -->
+<section class="chapter wrap" id="lean" aria-labelledby="lean-h">
+  <div class="ch-grid">
+    <div class="ch-text">
+      <h2 id="lean-h">Lean is a feature.</h2>
+      <p class="ch-lead">Every dependency and every feature pays rent. What Oxide leaves out is part of the design.</p>
+      <ul class="never">
+        <li><b>Accounts</b><span>None. No sign-in, and no servers of its own.</span></li>
+        <li><b>Telemetry</b><span>None. The log is a plain-text file on your Mac.</span></li>
+        <li><b>Plugins</b><span>None, and no marketplace to manage.</span></li>
+        <li><b>Network</b><span>One call, the update check. Git, Claude Code and <code class="i">gh</code> run as your own tools.</span></li>
+      </ul>
+    </div>
+    <div>
+      <dl class="spec">
+        <div class="spec-row"><dt>Git status, after a save<span>Budget 100 ms</span></dt><dd>22.4<small>ms</small></dd><div class="meter" aria-hidden="true"><i style="width:22.4%"></i></div></div>
+        <div class="spec-row"><dt>Search the whole repo, first results<span>Budget 150 ms</span></dt><dd>0.44<small>ms</small></dd><div class="meter" aria-hidden="true"><i style="width:0.3%"></i></div></div>
+        <div class="spec-row"><dt>Download<span>The whole app, signed</span></dt><dd data-size-num>12.2<small>MB</small></dd></div>
+      </dl>
+      <p class="spec-note">Timings measured on a 10,000-file repository on an Apple Silicon Mac, against budgets set before the code was written. Bars show the share of budget used.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ── Install ───────────────────────────────────────────────────── -->
+<section class="install" id="install" aria-labelledby="install-h">
+  <div class="rings" aria-hidden="true"><svg viewBox="0 0 1024 1024"><use href="#i-rings"/></svg></div>
+  <div class="wrap">
+    <h2 id="install-h">Get Oxide.</h2>
+    <p class="lead">Free to download. It keeps itself current: a quiet pill offers the new version when it’s ready, and you relaunch when it suits you.</p>
+    <a class="btn" data-dl href="https://github.com/Miawousha/oxide-releases/releases/latest"><svg aria-hidden="true"><use href="#i-down"/></svg>Download Oxide <span data-ver>0.7.0</span></a>
+    <p class="cta-meta"><span data-size>12.2 MB</span> disk image · <span data-date>Released 13 September 2026</span> · <a href="https://github.com/Miawousha/oxide-releases/releases">All releases</a></p>
+    <div class="upd" aria-hidden="true">Update ready — relaunch to apply. <span>Relaunch</span></div>
+    <div class="install-grid">
+      <div>
+        <h3>First launch</h3>
+        <ol class="steps">
+          <li>Open the <b>.dmg</b> and drag Oxide to Applications.</li>
+          <li>Open Oxide. macOS stops it the first time.</li>
+          <li>Go to <b>System Settings → Privacy &amp; Security</b>, scroll down and click <b>Open Anyway</b>.</li>
+        </ol>
+        <p class="why">You do this once. Oxide is signed and every update is signature-checked before it installs, but Apple hasn’t notarized it yet, so macOS asks you to vouch for it.</p>
+      </div>
+      <div>
+        <h3>What it needs</h3>
+        <ul class="reqs">
+          <li><b>macOS 14+</b><span>On Apple Silicon. Intel Macs are not supported.</span></li>
+          <li><b>git</b><span>For everything version control. Without it, Oxide is a reader and editor.</span></li>
+          <li><b>Claude Code</b><span>Optional. Installed and signed in, it powers the AI features.</span></li>
+          <li><b>gh</b><span>Optional. Lets you browse and clone your GitHub repositories.</span></li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <span>Oxide is made by Matrice Technologies.</span>
+    <span class="links"><a href="https://github.com/Miawousha/oxide-releases/releases">Release notes</a><a href="#top">Back to top</a></span>
+  </div>
+</footer>
+
+<script>
+(() => {
+  const reduce = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const $ = (s, r = document) => r.querySelector(s);
+  const esc = (s) => s.replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+  const sleep = (ms) => new Promise((r) => setTimeout(r, reduce ? 0 : ms));
+
+  /* ── Hero: the headline leaves its line, so it renders ─────────────── */
+  const h1 = $('#hero-h');
+  setTimeout(() => h1.classList.add('rendered'), reduce ? 0 : 1600);
+
+  /* ── Latest release: direct .dmg link, version, size, date ─────────── */
+  fetch('https://api.github.com/repos/Miawousha/oxide-releases/releases/latest', { headers: { Accept: 'application/vnd.github+json' } })
+    .then((r) => (r.ok ? r.json() : null))
+    .then((rel) => {
+      if (!rel) return;
+      const dmg = (rel.assets || []).find((a) => /\.dmg$/.test(a.name));
+      const ver = String(rel.tag_name || '').replace(/^v/, '');
+      if (dmg) {
+        document.querySelectorAll('[data-dl]').forEach((a) => (a.href = dmg.browser_download_url));
+        const mb = (dmg.size / 1e6).toFixed(1);
+        document.querySelectorAll('[data-size]').forEach((e) => (e.textContent = mb + ' MB'));
+        document.querySelectorAll('[data-size-num]').forEach((e) => (e.innerHTML = mb + '<small>MB</small>'));
+      }
+      if (/^\d+\.\d+\.\d+$/.test(ver)) document.querySelectorAll('[data-ver]').forEach((e) => (e.textContent = ver));
+      if (rel.published_at) {
+        const d = new Date(rel.published_at).toLocaleDateString('en-GB', { day: 'numeric', month: 'long', year: 'numeric' });
+        document.querySelectorAll('[data-date]').forEach((e) => (e.textContent = 'Released ' + d));
+      }
+    })
+    .catch(() => {});
+
+  /* ── Markdown, the small subset the sample notebook uses ───────────── */
+  const inlineRead = (s) =>
+    esc(s)
+      .replace(/`([^`]+)`/g, '<code>$1</code>')
+      .replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
+      .replace(/\[\[([^\]]+)\]\]/g, (_, t) => `<a class="wl" href="#" data-wl="${t}">${t.split('/').pop()}</a>`);
+  const inlineEdit = (s) =>
+    esc(s)
+      .replace(/`([^`]+)`/g, '<span class="c"><span class="mk hide">`</span>$1<span class="mk hide">`</span></span>')
+      .replace(/\*\*([^*]+)\*\*/g, '<span class="mk hide">**</span><span class="b">$1</span><span class="mk hide">**</span>')
+      .replace(/\*\*([^*<]*)$/, '<span class="mk">**</span><span class="b">$1</span>')
+      .replace(/\[\[([^\]]+)\]\]/g, '<span class="mk hide">[[</span><span class="l">$1</span><span class="mk hide">]]</span>')
+      .replace(/\[\[([^\]<]*)$/, '<span class="mk">[[</span><span class="l">$1</span>');
+
+  function splitFm(src) {
+    const m = src.match(/^---\n([\s\S]*?)\n---\n/);
+    if (!m) return { fm: null, body: src };
+    return { fm: m[1].split('\n').map((l) => l.split(/:\s*/)), body: src.slice(m[0].length) };
+  }
+  function renderReader(src) {
+    const { fm, body } = splitFm(src);
+    let html = fm ? '<dl class="fm">' + fm.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v || '')}</dd>`).join('') + '</dl>' : '';
+    for (const b of body.split(/\n\s*\n/)) {
+      const lines = b.split('\n');
+      if (/^# /.test(b)) html += `<h1>${inlineRead(b.slice(2))}</h1>`;
+      else if (/^## /.test(b)) html += `<h2>${inlineRead(b.slice(3))}</h2>`;
+      else if (lines.every((l) => /^- /.test(l))) html += '<ul>' + lines.map((l) => `<li>${inlineRead(l.slice(2))}</li>`).join('') + '</ul>';
+      else if (/^> /.test(b)) html += `<blockquote>${inlineRead(lines.map((l) => l.replace(/^> ?/, '')).join(' '))}</blockquote>`;
+      else if (b.trim()) html += `<p>${inlineRead(lines.join(' '))}</p>`;
+    }
+    return `<div class="doc-inner reader">${html}</div>`;
+  }
+  /* The live-preview editor. `extra` is appended after the caret. */
+  function edLines(lines, caret, extra = '') {
+    const fmEnd = lines[0] === '---' ? lines.indexOf('---', 1) : -1;
+    return lines.map((l, i) => {
+      let cls = 'ln', html;
+      if (i <= fmEnd) { cls += ' fmx' + (i === 0 ? ' first' : '') + (i === fmEnd ? ' last' : ''); html = esc(l); }
+      else if (/^# /.test(l)) { cls += ' h1'; html = '<span class="mk hide"># </span>' + inlineEdit(l.slice(2)); }
+      else if (/^## /.test(l)) { cls += ' h2'; html = '<span class="mk hide">## </span>' + inlineEdit(l.slice(3)); }
+      else if (/^- /.test(l)) { html = '<span class="mk">- </span>' + inlineEdit(l.slice(2)); }
+      else if (/^> /.test(l)) { cls += ' q'; html = '<span class="mk">&gt; </span>' + inlineEdit(l.slice(2)); }
+      else html = inlineEdit(l);
+      if (i === caret) { cls += ' caret'; html += '<span class="cursor" aria-hidden="true"></span>' + extra; }
+      return `<div class="${cls}" data-i="${i}">${html || '&#8203;'}</div>`;
+    }).join('');
+  }
+
+  /* ── The sample notebook ───────────────────────────────────────────── */
+  const FILES = {
+    'essays/plain-text.md': `---
+title: On plain text
+status: draft
+---
+# On plain text
+
+Writing outlives the tools it was written in. A plain file can be opened decades from now by anything that reads text, and it will say exactly what it says today.
+
+## Why it lasts
+
+- It diffs, so every revision is visible.
+- It merges, so two people can work on it at once.
+- It links, with [[wikilinks]] that stay honest.
+
+> The file on disk is the draft. Everything else is a view of it.
+
+Next, read [[slow-tools]].`,
+    'essays/slow-tools.md': `---
+title: Slow tools
+status: published
+---
+# Slow tools
+
+A good tool is one you stop noticing. It opens before you finish reaching for it, and never leaves you wondering what it did to your words.
+
+- It saves without being asked.
+- It shows you **exactly** what changed.`,
+    'drafts/letter-to-a-new-writer.md': `# Letter to a new writer
+
+Keep everything. Commit often. The draft you delete today is the paragraph you want back in March.
+
+> Write first. Format never. Read [[plain-text]] before you pick an app.`,
+    'notes/reading-list.md': `---
+type: list
+---
+# Reading list
+
+- The Elements of Typographic Style, for the measure.
+- [[plain-text]], our own house rules.
+- [[slow-tools]], on choosing an app.`,
+    'README.md': `# Notebook
+
+Essays, drafts and notes, kept in git. Start with [[plain-text]].
+
+## Layout
+
+- \`essays/\` — finished, or nearly.
+- \`drafts/\` — everything else.
+- \`notes/\` — reading and research.`,
+  };
+  const TREE = [
+    { dir: 'drafts', files: ['letter-to-a-new-writer.md'] },
+    { dir: 'essays', files: ['plain-text.md', 'slow-tools.md'] },
+    { dir: 'notes', files: ['reading-list.md'] },
+    { files: ['README.md'] },
+  ];
+  const state = { open: ['README.md', 'essays/plain-text.md'], active: 'essays/plain-text.md', mode: 'read', caret: 6 };
+
+  function renderTree() {
+    const icon = (id) => `<svg aria-hidden="true"><use href="#${id}"/></svg>`;
+    let h = '';
+    for (const g of TREE) {
+      if (g.dir) h += `<li><div class="row dir"><span class="tw">▾</span>${icon('i-dir')}${g.dir}</div></li>`;
+      for (const f of g.files) {
+        const p = g.dir ? `${g.dir}/${f}` : f;
+        h += `<li><button type="button" class="row${g.dir ? ' lvl1' : ''}" data-open="${p}" aria-current="${p === state.active}">${g.dir ? '' : '<span class="tw"></span>'}${icon('i-doc')}${f}</button></li>`;
+      }
+    }
+    $('#tree').innerHTML = h;
+  }
+  function renderTabs() {
+    $('#tabs').innerHTML = state.open.map((p) => `<button type="button" role="tab" class="tab" data-open="${p}" aria-selected="${p === state.active}">${p.split('/').pop()}<span class="x" aria-hidden="true">✕</span></button>`).join('');
+    const parts = state.active.split('/');
+    $('#crumb').innerHTML = 'notebook / ' + parts.map((p, i) => (i === parts.length - 1 ? `<b>${esc(p)}</b>` : esc(p))).join(' / ');
+  }
+  function renderToc(src) {
+    const hs = src.split('\n').filter((l) => /^#{1,2} /.test(l));
+    $('#toc').innerHTML = hs.length < 2 ? '' : hs.map((h, i) => `<i class="${h.startsWith('## ') ? 'l2' : ''}${i === 0 ? ' on' : ''}"></i>`).join('');
+  }
+  async function renderBytes(flash) {
+    const bytes = new TextEncoder().encode(FILES[state.active]);
+    $('#b-path').textContent = state.active.split('/').pop();
+    $('#b-size').textContent = bytes.length.toLocaleString('en') + ' bytes';
+    try {
+      const d = await crypto.subtle.digest('SHA-256', bytes);
+      $('#b-sha').textContent = [...new Uint8Array(d)].slice(0, 4).map((b) => b.toString(16).padStart(2, '0')).join('') + '…';
+    } catch { $('#b-sha').textContent = 'n/a'; }
+    $('#b-same').textContent = flash ? '— unchanged' : '';
+    if (flash) { const el = $('#bytes'); el.classList.remove('flash'); void el.offsetWidth; el.classList.add('flash'); }
+  }
+  function render(opts = {}) {
+    const src = FILES[state.active];
+    $('#face').innerHTML = state.mode === 'read'
+      ? renderReader(src)
+      : `<div class="editor" tabindex="0" role="textbox" aria-multiline="true" aria-readonly="true" aria-label="Editor. Click a line, or use the arrow keys, to see its raw markdown.">${edLines(src.split('\n'), state.caret)}</div>`;
+    renderToc(src);
+    $('#m-read').setAttribute('aria-pressed', state.mode === 'read');
+    $('#m-edit').setAttribute('aria-pressed', state.mode === 'edit');
+    renderTabs(); renderTree(); renderBytes(opts.flash);
+  }
+  function setMode(m) {
+    if (m === state.mode) return;
+    const doc = $('#doc');
+    const ratio = doc.scrollTop / Math.max(1, doc.scrollHeight - doc.clientHeight);
+    state.mode = m;
+    render({ flash: true });
+    doc.scrollTop = ratio * (doc.scrollHeight - doc.clientHeight);
+  }
+  function openFile(p) {
+    if (!FILES[p]) return;
+    if (!state.open.includes(p)) state.open.push(p);
+    state.active = p;
+    const lines = FILES[p].split('\n');
+    state.caret = Math.max(0, lines.findIndex((l, i) => i > 0 && l && !/^(---|#|\w+:)/.test(l)));
+    $('#doc').scrollTop = 0;
+    render();
+  }
+  $('#m-read').addEventListener('click', () => setMode('read'));
+  $('#m-edit').addEventListener('click', () => setMode('edit'));
+  document.addEventListener('keydown', (e) => {
+    if ((e.metaKey || e.ctrlKey) && !e.shiftKey && !e.altKey && e.key.toLowerCase() === 'e') {
+      e.preventDefault();
+      setMode(state.mode === 'read' ? 'edit' : 'read');
+    }
+  });
+  $('#win').addEventListener('click', (e) => {
+    const o = e.target.closest('[data-open]');
+    if (o) return openFile(o.dataset.open);
+    const wl = e.target.closest('[data-wl]');
+    if (wl) {
+      e.preventDefault();
+      const hit = Object.keys(FILES).find((p) => p.replace(/\.md$/, '').endsWith(wl.dataset.wl));
+      if (hit) openFile(hit);
+      return;
+    }
+    const ln = e.target.closest('.ln');
+    if (ln) { state.caret = +ln.dataset.i; const top = $('#doc').scrollTop; render(); $('#doc').scrollTop = top; $('#face .editor').focus({ preventScroll: true }); }
+  });
+  $('#win').addEventListener('keydown', (e) => {
+    if (!e.target.classList.contains('editor') || (e.key !== 'ArrowDown' && e.key !== 'ArrowUp')) return;
+    e.preventDefault();
+    const n = FILES[state.active].split('\n').length;
+    state.caret = Math.min(n - 1, Math.max(0, state.caret + (e.key === 'ArrowDown' ? 1 : -1)));
+    const top = $('#doc').scrollTop;
+    render();
+    $('#doc').scrollTop = top;
+    $('#face .editor').focus({ preventScroll: true });
+    $('#face .ln.caret')?.scrollIntoView({ block: 'nearest' });
+  });
+  render();
+
+  /* ── Write: a writing session, replayed ────────────────────────────── */
+  const START = ['# Letter to a new writer', '', 'Keep everything. Commit often.'];
+  const wr = { lines: [...START], caret: -1, extra: '', run: 0 };
+  const wrEd = $('#wr-ed'), wrStep = $('#wr-step'), wrSub = $('#wr-sub');
+  const wrPaint = () => { wrEd.innerHTML = edLines(wr.lines, wr.caret, wr.extra); };
+  const say = (a, b = '') => { wrStep.textContent = a; wrSub.textContent = b; };
+  async function type(text, id) {
+    for (const ch of text) {
+      if (id !== wr.run) return false;
+      wr.lines[wr.caret] += ch; wrPaint();
+      await sleep(ch === ' ' ? 45 : 26 + Math.random() * 30);
+    }
+    return id === wr.run;
+  }
+  async function enter(id) {
+    if (id !== wr.run) return false;
+    const cont = /^- ./.test(wr.lines[wr.caret]) ? '- ' : '';
+    wr.lines.splice(wr.caret + 1, 0, cont);
+    wr.caret++; wrPaint();
+    await sleep(260);
+    return id === wr.run;
+  }
+  async function session() {
+    const id = ++wr.run;
+    wr.lines = [...START]; wr.caret = 2; wr.extra = ''; wrPaint();
+    say('Writing', 'The line you’re on shows its markdown.');
+    await sleep(700);
+    if (!(await type(' The draft you delete today is the paragraph you want back in **March**.', id))) return;
+    await sleep(500);
+    if (!(await enter(id)) || !(await enter(id))) return;
+    say('Left the line', 'It renders, and the ** step aside.');
+    await sleep(1100);
+    if (!(await type('## House rules', id))) return;
+    await sleep(300);
+    if (!(await enter(id))) return;
+    say('A heading', 'Leave its line and the ## goes quiet.');
+    if (!(await enter(id))) return;
+    await sleep(500);
+    if (!(await type('- Write first, format never.', id))) return;
+    if (!(await enter(id))) return;
+    say('Enter', 'The list continues by itself.');
+    await sleep(700);
+    if (!(await type('Commit before you rewrite.', id))) return;
+    if (!(await enter(id))) return;
+    if (!(await type('Link, don’t repeat: [[', id))) return;
+    const opts = [['plain-text', 'essays'], ['slow-tools', 'essays'], ['reading-list', 'notes']];
+    say('[[', 'Your own pages, suggested as you type.');
+    for (const sel of [0, 1]) {
+      if (id !== wr.run) return;
+      wr.extra = '<div class="ac">' + opts.map(([n, d], j) => `<div class="${j === sel ? 'on' : ''}">${n}<span>${d}</span></div>`).join('') + '</div>';
+      wrPaint();
+      await sleep(sel === 0 ? 1000 : 700);
+    }
+    if (id !== wr.run) return;
+    wr.extra = '';
+    wr.lines[wr.caret] += 'slow-tools]]';
+    wrPaint();
+    await sleep(700);
+    if (!(await enter(id))) return;
+    wr.caret = -1; wrPaint();
+    say('Saved', 'Half a second after you stop. The file is exactly what you typed.');
+  }
+  $('#wr-play').addEventListener('click', session);
+  wrPaint();
+  if (reduce) session();
+  else if ('IntersectionObserver' in window) {
+    const io = new IntersectionObserver((es) => { if (es.some((e) => e.isIntersecting)) { io.disconnect(); session(); } }, { threshold: 0.45 });
+    io.observe(wrEd);
+  } else session();
+
+  /* ── Read: Oxide's three text widths ───────────────────────────────── */
+  document.querySelectorAll('[data-w]').forEach((b) =>
+    b.addEventListener('click', () => {
+      $('#rd-article').style.maxWidth = b.dataset.w + 'px';
+      document.querySelectorAll('[data-w]').forEach((x) => x.setAttribute('aria-pressed', String(x === b)));
+    }),
+  );
+
+  /* ── AI: phrase-level diffs over the selection ─────────────────────── */
+  const ORIGINAL = 'Writing outlives the tools it was written in, because a plain file can be opened by pretty much anything that is able to read text, even many years from now, and it will still say exactly the same thing that it say today.';
+  const SEGS = {
+    improve: [['eq', 'Writing outlives the tools it was written in'], ['del', ', because a'], ['ins', '. A'], ['eq', ' plain file can be opened by '], ['del', 'pretty much anything that is able to read text, even many years from now,'], ['ins', 'almost anything that reads text, decades from now,'], ['eq', ' and it will '], ['del', 'still say exactly the same thing that it say today.'], ['ins', 'say exactly what it says today.']],
+    tighten: [['eq', 'Writing outlives '], ['del', 'the tools it was written in, because'], ['ins', 'its tools:'], ['eq', ' a plain file '], ['del', 'can be opened by pretty much anything that is able to read text, even many years from now, and it will still say exactly the same thing that it say today.'], ['ins', 'opens in anything that reads text, years from now, and says what it says today.']],
+    expand: [['eq', 'Writing outlives the tools it was written in, because a plain file can be opened by pretty much anything that is able to read text, even many years from now, and it will still say exactly the same thing that it '], ['del', 'say today.'], ['ins', 'says today. That is the whole case for markdown in git: the words stay yours, in a format no company can take away, with every revision on the record.']],
+    grammar: [['eq', 'Writing outlives the tools it was written in, because a plain file can be opened by pretty much anything that is able to read text, even many years from now, and it will still say exactly the same thing that it '], ['del', 'say'], ['ins', 'says'], ['eq', ' today.']],
+  };
+  const tok = (s) => s.match(/\s+|[^\s]+/g) || [];
+  const ai = { current: ORIGINAL, timer: null, result: null };
+  const aiSel = $('#ai-sel'), aiCard = $('#ai-card'), aiDiff = $('#ai-diff'), aiState = $('#ai-state'), aiNote = $('#ai-note');
+  const aiAccept = $('#ai-accept'), aiReject = $('#ai-reject');
+  const popBtns = () => document.querySelectorAll('.pop button');
+  const NOTE0 = 'Pick a rewrite above. <span>Illustrative responses, written for this page.</span>';
+  function aiReset(text) {
+    clearInterval(ai.timer);
+    ai.current = text; ai.result = null;
+    aiSel.textContent = text; aiSel.className = 'selp';
+    aiCard.hidden = true;
+    popBtns().forEach((b) => { b.setAttribute('aria-pressed', 'false'); b.disabled = false; });
+  }
+  function aiRun(act) {
+    clearInterval(ai.timer);
+    const segs = SEGS[act];
+    const target = segs.filter(([t]) => t !== 'del').map(([, x]) => x).join('');
+    popBtns().forEach((b) => b.setAttribute('aria-pressed', String(b.dataset.act === act)));
+    const pieces = segs.flatMap(([t, x]) => tok(x).map((s) => ({ t, s })));
+    aiCard.hidden = false;
+    aiAccept.disabled = aiReject.disabled = true;
+    aiState.textContent = 'Streaming from Claude Code…';
+    aiNote.innerHTML = '<span>Illustrative responses, written for this page.</span>';
+    const paint = (k) => {
+      let html = '', run = null, buf = '';
+      const flush = () => { if (buf) html += run === 'eq' ? esc(buf) : `<${run} class="w">${esc(buf)}</${run}>`; buf = ''; };
+      for (let x = 0; x < k; x++) { const p = pieces[x]; if (p.t !== run) { flush(); run = p.t; } buf += p.s; }
+      flush();
+      aiDiff.innerHTML = html + (k < pieces.length ? '<span class="cursor" aria-hidden="true"></span>' : '');
+    };
+    const done = () => {
+      paint(pieces.length);
+      aiAccept.disabled = aiReject.disabled = false;
+      aiState.textContent = act === 'grammar' ? '1 word changed' : 'Review, then accept or reject';
+      ai.result = target;
+    };
+    if (reduce) return done();
+    let k = 0;
+    ai.timer = setInterval(() => { k += 2; if (k >= pieces.length) { clearInterval(ai.timer); done(); } else paint(k); }, 22);
+  }
+  popBtns().forEach((b) => b.addEventListener('click', () => aiRun(b.dataset.act)));
+  aiAccept.addEventListener('click', () => {
+    if (!ai.result) return;
+    aiReset(ai.result);
+    aiSel.className = '';
+    popBtns().forEach((b) => (b.disabled = true));
+    aiNote.innerHTML = 'Accepted. It’s now an ordinary change in your working tree, one <b>●</b> in the status pill. <button class="linkbtn" type="button" id="ai-again">Start over</button>';
+    $('#ai-again').addEventListener('click', () => { aiReset(ORIGINAL); aiNote.innerHTML = NOTE0; });
+  });
+  aiReject.addEventListener('click', () => { aiReset(ai.current); aiNote.innerHTML = 'Rejected. Not a byte changed. Pick another rewrite, or leave it.'; });
+  aiReset(ORIGINAL);
+
+  /* ── Git: stage → draft → commit → sync ────────────────────────────── */
+  const G0 = () => ({
+    files: [
+      { path: 'essays/plain-text.md', staged: false, diff: [['eq', 'A plain file can be opened '], ['del', 'decades from now'], ['ins', 'in fifty years'], ['eq', ' by anything that reads text, and it will say exactly what it says today.']] },
+      { path: 'drafts/letter-to-a-new-writer.md', staged: false, diff: [['eq', 'Keep everything. '], ['ins', 'Commit often. '], ['eq', 'The draft you delete today is the paragraph you want back in March.']] },
+    ],
+    sel: 0, ahead: 0, busy: false,
+  });
+  let g = G0();
+  const msg = $('#g-msg');
+  const DRAFT = 'Sharpen the opening of On plain text\n\nMake the timescale concrete: fifty years, not decades.';
+  function gRender() {
+    const st = g.files.filter((f) => f.staged), un = g.files.filter((f) => !f.staged);
+    const row = (f) => {
+      const i = g.files.indexOf(f), dir = f.path.replace(/[^/]+$/, ''), name = f.path.split('/').pop();
+      return `<div class="gfile${i === g.sel ? ' sel' : ''}"><span class="badge">M</span><span class="path" data-sel="${i}" role="button" tabindex="0">${esc(name)} <span>${esc(dir)}</span></span><button class="mini" type="button" data-stage="${i}">${f.staged ? 'Unstage' : 'Stage'}</button></div>`;
+    };
+    $('#g-staged').innerHTML = st.length ? st.map(row).join('') : '<div class="gempty">Nothing staged</div>';
+    $('#g-unstaged').innerHTML = un.length ? un.map(row).join('') : '<div class="gempty">No changes</div>';
+    $('#g-sn').textContent = st.length || '';
+    $('#g-un').textContent = un.length || '';
+    const f = g.files[g.sel];
+    if (f) {
+      const body = f.diff.map(([t, s]) => (t === 'eq' ? esc(s) : `<${t} class="w">${esc(s)}</${t}>`)).join('');
+      $('#g-diff').innerHTML = `<div class="hunk-h"><span>${esc(f.path)} · 1 hunk</span><button class="mini" type="button" data-stage="${g.sel}">${f.staged ? 'Unstage hunk' : 'Stage hunk'}</button></div>${body}`;
+      $('#g-diff').hidden = false;
+    } else $('#g-diff').hidden = true;
+    const changed = g.files.length;
+    $('#g-pill').textContent = (g.ahead ? `↑${g.ahead} · ` : '') + `● ${changed}`;
+    $('#g-count').textContent = changed ? `${changed} changed` : 'clean';
+    $('#g-draft').disabled = !st.length || g.busy;
+    $('#g-commit').disabled = !st.length || !msg.value.trim() || g.busy;
+    $('#g-sync').disabled = !g.ahead || g.busy;
+    $('#g-hint').textContent = !st.length ? (changed ? 'Stage something to commit it.' : '') : !msg.value.trim() ? 'Write a message, or draft one.' : '';
+  }
+  $('#git-panel').addEventListener('click', (e) => {
+    const s = e.target.closest('[data-stage]');
+    if (s) { const f = g.files[+s.dataset.stage]; f.staged = !f.staged; return gRender(); }
+    const p = e.target.closest('[data-sel]');
+    if (p) { g.sel = +p.dataset.sel; gRender(); }
+  });
+  $('#git-panel').addEventListener('keydown', (e) => {
+    const p = e.target.closest('[data-sel]');
+    if (p && (e.key === 'Enter' || e.key === ' ')) { e.preventDefault(); g.sel = +p.dataset.sel; gRender(); }
+  });
+  msg.addEventListener('input', gRender);
+  $('#g-draft').addEventListener('click', () => {
+    g.busy = true; msg.value = ''; gRender();
+    let k = 0;
+    const step = () => {
+      k = reduce ? DRAFT.length : k + 2;
+      msg.value = DRAFT.slice(0, k);
+      if (k < DRAFT.length) setTimeout(step, 18); else { g.busy = false; gRender(); }
+    };
+    step();
+  });
+  $('#g-commit').addEventListener('click', () => {
+    const n = g.files.filter((f) => f.staged).length;
+    g.files = g.files.filter((f) => !f.staged);
+    g.sel = g.files.length ? 0 : -1;
+    g.ahead += 1;
+    $('#g-log').textContent = `Committed ${n} file${n > 1 ? 's' : ''}`;
+    msg.value = '';
+    gRender();
+  });
+  $('#g-sync').addEventListener('click', () => {
+    g.busy = true; gRender();
+    const steps = ['Fetching…', 'Rebasing…', 'Pushing…'];
+    let i = 0;
+    const tick = () => {
+      if (i < steps.length) { $('#g-log').textContent = steps[i++]; setTimeout(tick, reduce ? 0 : 380); return; }
+      const n = g.ahead; g.ahead = 0; g.busy = false;
+      $('#g-log').innerHTML = `<span class="sync-state">Pushed ${n} commit${n > 1 ? 's' : ''} to origin/main</span>`;
+      gRender();
+    };
+    tick();
+  });
+  $('#g-reset').addEventListener('click', () => { g = G0(); msg.value = ''; $('#g-log').textContent = ''; gRender(); });
+  gRender();
+})();
+</script>
 </body>
 </html>
