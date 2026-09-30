@@ -117,7 +117,7 @@ h1.rendered:hover .hmk { max-width: 2em; opacity: 1; }
 .try:focus-within { box-shadow: 0 0 0 3px rgba(18, 18, 20, 0.08); }
 .try-bar { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-bottom: 1px solid var(--rule); position: relative; }
 .try-bar .win-title { font-size: 12px; }
-.try-body { height: 330px; overflow: auto; position: relative; }
+.try-body { height: 232px; overflow: auto; position: relative; }
 .try .editor { max-width: none; padding: 20px 24px 40px; font-size: 14.625px; }
 .try .editor .ln { cursor: text; }
 .try textarea { position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; resize: none; font-size: 16px; pointer-events: none; }
@@ -127,6 +127,15 @@ h1.rendered:hover .hmk { max-width: 2em; opacity: 1; }
 .try-foot > span:last-child { white-space: nowrap; }
 .try-foot .st { font-weight: 600; color: var(--ink); }
 .try-foot .st.saved { color: var(--add); }
+.try-m { color: var(--mod); font: 600 10.5px var(--mono); margin-left: 6px; }
+.try-diff { border-top: 1px solid var(--rule); background: var(--ground); height: 118px; overflow: auto; padding: 7px 14px 10px; }
+.try-diff-h { display: flex; justify-content: space-between; margin-bottom: 4px; }
+.try-diff-h .n { font: 600 11px var(--mono); letter-spacing: 0; text-transform: none; }
+.try-diff-h .n .a { color: var(--add); }
+.try-diff-h .n .d { color: var(--del); }
+.hunk { font: 12.5px/1.65 var(--mono); white-space: pre-wrap; word-break: break-word; padding: 3px 0; color: var(--ink-2); }
+.hunk + .hunk { border-top: 1px dashed var(--rule); }
+.try-clean { font-size: 12.5px; color: var(--muted); padding-top: 2px; }
 .try-hint { color: var(--muted); }
 .try:focus-within .try-hint { display: none; }
 
@@ -400,7 +409,9 @@ footer .links { display: flex; gap: 22px; flex-wrap: wrap; }
 }
 @media (max-width: 760px) {
   .nav-links a:not(.btn) { display: none; }
-  .try-body { height: 260px; }
+  .try-body { height: 210px; }
+  .try-foot .try-hint { display: none; }
+  .try-diff { height: 110px; }
   .try .editor { padding: 14px 14px 32px; font-size: 13px; }
   .win { height: 480px; }
   .win-body { grid-template-columns: minmax(0, 1fr); }
@@ -470,13 +481,14 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
     </div>
    </div>
    <div class="try" id="try">
-     <div class="try-bar"><div class="lights" aria-hidden="true"><i></i><i></i><i></i></div><div class="win-title">scratch.md</div></div>
+     <div class="try-bar"><div class="lights" aria-hidden="true"><i></i><i></i><i></i></div><div class="win-title">scratch.md<span class="try-m" id="try-m" title="Modified">M</span></div></div>
      <div class="try-body" id="try-body">
        <label class="sr-only" for="try-ta">Try the editor: type markdown</label>
        <textarea id="try-ta" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
        <div class="editor" id="try-view" aria-hidden="true"></div>
      </div>
-     <div class="try-foot"><span class="try-hint">Click and type.</span><span class="st" id="try-st"></span><span class="spacer"></span><span>on disk <code id="try-bytes">—</code></span></div>
+     <div class="try-diff" id="try-diff" aria-live="polite"></div>
+     <div class="try-foot"><span class="pill"><svg aria-hidden="true"><use href="#i-branch"/></svg>main</span><span class="pill" id="try-pill">● 1</span><span class="try-hint">Click and type.</span><span class="st" id="try-st"></span><span class="spacer"></span><span>on disk <code id="try-bytes">—</code></span></div>
    </div>
   </div>
 
@@ -1020,6 +1032,52 @@ Essays, drafts and notes, kept in git. Start with [[plain-text]].
   const CARET = '';
   const tr = { acSel: 0, acOff: false, saveT: 0 };
   tryTa.value = "# Try it\n\nType anywhere. The line you're on shows its **markdown**; move off it and it renders.\n\n- Enter continues a list\n- Type `[[` to link a page";
+  // The last commit. The scratch file starts with one uncommitted change, so the diff has something to say.
+  const TRY_BASE = "# Try it\n\nType anywhere. The line you're on shows its markdown.\n\n- Enter continues a list";
+  const lcs = (A, B) => {
+    const n = A.length, m = B.length, L = Array.from({ length: n + 1 }, () => new Int32Array(m + 1));
+    for (let i = n - 1; i >= 0; i--) for (let j = m - 1; j >= 0; j--) L[i][j] = A[i] === B[j] ? L[i + 1][j + 1] + 1 : Math.max(L[i + 1][j], L[i][j + 1]);
+    const ops = []; let i = 0, j = 0;
+    while (i < n && j < m) { if (A[i] === B[j]) { ops.push(['eq', A[i]]); i++; j++; } else if (L[i + 1][j] >= L[i][j + 1]) ops.push(['del', A[i++]]); else ops.push(['ins', B[j++]]); }
+    while (i < n) ops.push(['del', A[i++]]);
+    while (j < m) ops.push(['ins', B[j++]]);
+    return ops;
+  };
+  /* Word diff inside one hunk, coalesced so a changed region reads as one struck phrase then one new phrase. */
+  function wordSegs(a, b) {
+    const wtok = (x) => x.match(/\s+|[^\s]+/g) || [];
+    const ops = lcs(wtok(a), wtok(b)), out = [];
+    for (let x = 0; x < ops.length; x++) {
+      const [t, w] = ops[x];
+      const gap = t === 'eq' && !w.trim() && out.length && out[out.length - 1].t === 'chg' && ops[x + 1] && ops[x + 1][0] !== 'eq';
+      if (t !== 'eq' || gap) {
+        if (!out.length || out[out.length - 1].t !== 'chg') out.push({ t: 'chg', del: '', ins: '' });
+        const c = out[out.length - 1];
+        if (t !== 'ins') c.del += w;
+        if (t !== 'del') c.ins += w;
+      } else if (out.length && out[out.length - 1].t === 'eq') out[out.length - 1].s += w;
+      else out.push({ t: 'eq', s: w });
+    }
+    return out.map((c) => (c.t === 'eq' ? esc(c.s) : (c.del ? `<del class="w">${esc(c.del)}</del>` : '') + (c.ins ? `<ins class="w">${esc(c.ins)}</ins>` : ''))).join('');
+  }
+  function tryDiff() {
+    const ops = lcs(TRY_BASE.split('\n'), tryTa.value.split('\n'));
+    const hunks = []; let cur = null, add = 0, rem = 0;
+    for (const [t, l] of ops) {
+      if (t === 'eq') { cur = null; continue; }
+      if (!cur) hunks.push((cur = { del: [], ins: [] }));
+      cur[t].push(l);
+      t === 'ins' ? add++ : rem++;
+    }
+    const dirty = hunks.length > 0;
+    $('#try-pill').textContent = '● ' + (dirty ? 1 : 0);
+    $('#try-m').hidden = !dirty;
+    const head = `<div class="try-diff-h"><span class="lbl">Changes since last commit</span>${dirty ? `<span class="n"><span class="a">+${add}</span> <span class="d">−${rem}</span></span>` : ''}</div>`;
+    const body = dirty
+      ? hunks.map((h) => `<div class="hunk">${wordSegs(h.del.join('\n'), h.ins.join('\n'))}</div>`).join('')
+      : '<div class="try-clean">No changes. The working tree matches the last commit.</div>';
+    $('#try-diff').innerHTML = head + body;
+  }
   function tryAc() {
     const pos = tryTa.selectionStart, v = tryTa.value;
     const lineStart = v.lastIndexOf('\n', pos - 1) + 1;
@@ -1049,6 +1107,7 @@ Essays, drafts and notes, kept in git. Start with [[plain-text]].
       return `<div class="ln caret${kind}" data-i="${i}">${h}</div>`;
     }).join('');
     tryBytes.textContent = new TextEncoder().encode(v).length + ' bytes';
+    tryDiff();
     if (focused) tryView.querySelector('.cursor')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
   }
   function tryInsert(text, from = tryTa.selectionStart, to = tryTa.selectionEnd) {
