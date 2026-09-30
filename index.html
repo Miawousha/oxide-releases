@@ -117,7 +117,8 @@ h1.rendered:hover .hmk { max-width: 2em; opacity: 1; }
 .try:focus-within { box-shadow: 0 0 0 3px rgba(18, 18, 20, 0.08); }
 .try-bar { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-bottom: 1px solid var(--rule); position: relative; }
 .try-bar .win-title { font-size: 12px; }
-.try-body { height: 232px; overflow: auto; position: relative; }
+.try-body { height: 330px; overflow: auto; position: relative; }
+.try.show-diff .try-body { height: 212px; }
 .try .editor { max-width: none; padding: 20px 24px 40px; font-size: 14.625px; }
 .try .editor .ln { cursor: text; }
 .try textarea { position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; resize: none; font-size: 16px; pointer-events: none; }
@@ -129,6 +130,13 @@ h1.rendered:hover .hmk { max-width: 2em; opacity: 1; }
 .try-foot .st.saved { color: var(--add); }
 .try-m { color: var(--mod); font: 600 10.5px var(--mono); margin-left: 6px; }
 .try-diff { border-top: 1px solid var(--rule); background: var(--ground); height: 118px; overflow: auto; padding: 7px 14px 10px; }
+.try:not(.show-diff) .try-diff { display: none; }
+.try-tag { display: inline-flex; align-items: center; gap: 5px; padding: 1px 8px; border-radius: 999px; border: 1px solid var(--rule); background: var(--paper); font: 600 11px/1.5 var(--mono); cursor: pointer; }
+.try-tag:hover { border-color: var(--ink); }
+.try-tag[aria-expanded="true"] { border-color: var(--ink); background: var(--ground); }
+.try-tag .a { color: var(--add); }
+.try-tag .d { color: var(--del); }
+.try-tag.clean { color: var(--muted); font-weight: 400; font-family: var(--sans); }
 .try-diff-h { display: flex; justify-content: space-between; margin-bottom: 4px; }
 .try-diff-h .n { font: 600 11px var(--mono); letter-spacing: 0; text-transform: none; }
 .try-diff-h .n .a { color: var(--add); }
@@ -409,7 +417,8 @@ footer .links { display: flex; gap: 22px; flex-wrap: wrap; }
 }
 @media (max-width: 760px) {
   .nav-links a:not(.btn) { display: none; }
-  .try-body { height: 210px; }
+  .try-body { height: 260px; }
+  .try.show-diff .try-body { height: 160px; }
   .try-foot .try-hint { display: none; }
   .try-diff { height: 110px; }
   .try .editor { padding: 14px 14px 32px; font-size: 13px; }
@@ -488,7 +497,7 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
        <div class="editor" id="try-view" aria-hidden="true"></div>
      </div>
      <div class="try-diff" id="try-diff" aria-live="polite"></div>
-     <div class="try-foot"><span class="pill"><svg aria-hidden="true"><use href="#i-branch"/></svg>main</span><span class="pill" id="try-pill">● 1</span><span class="try-hint">Click and type.</span><span class="st" id="try-st"></span><span class="spacer"></span><span>on disk <code id="try-bytes">—</code></span></div>
+     <div class="try-foot"><span class="pill"><svg aria-hidden="true"><use href="#i-branch"/></svg>main</span><button type="button" class="try-tag" id="try-tag" aria-expanded="false" aria-controls="try-diff" title="Show changes since the last commit"></button><span class="try-hint">Click and type.</span><span class="st" id="try-st"></span><span class="spacer"></span><span>on disk <code id="try-bytes">—</code></span></div>
    </div>
   </div>
 
@@ -1070,9 +1079,12 @@ Essays, drafts and notes, kept in git. Start with [[plain-text]].
       t === 'ins' ? add++ : rem++;
     }
     const dirty = hunks.length > 0;
-    $('#try-pill').textContent = '● ' + (dirty ? 1 : 0);
+    const tag = $('#try-tag');
+    tag.classList.toggle('clean', !dirty);
+    tag.innerHTML = dirty ? `<span class="a">+${add}</span><span class="d">−${rem}</span>` : 'clean';
+    tag.setAttribute('aria-label', dirty ? `${add} lines added, ${rem} removed since the last commit. Show changes.` : 'No changes since the last commit.');
     $('#try-m').hidden = !dirty;
-    const head = `<div class="try-diff-h"><span class="lbl">Changes since last commit</span>${dirty ? `<span class="n"><span class="a">+${add}</span> <span class="d">−${rem}</span></span>` : ''}</div>`;
+    const head = `<div class="try-diff-h"><span class="lbl">Changes since last commit</span></div>`;
     const body = dirty
       ? hunks.map((h) => `<div class="hunk">${wordSegs(h.del.join('\n'), h.ins.join('\n'))}</div>`).join('')
       : '<div class="try-clean">No changes. The working tree matches the last commit.</div>';
@@ -1159,7 +1171,13 @@ Essays, drafts and notes, kept in git. Start with [[plain-text]].
     tryTa.setSelectionRange(off, off);
     tryRender();
   });
-  $('#try').addEventListener('click', (e) => { if (!e.target.closest('#try-body')) tryTa.focus({ preventScroll: true }); });
+  $('#try-tag').addEventListener('click', (e) => {
+    e.stopPropagation();
+    const open = !$('#try').classList.contains('show-diff');
+    $('#try').classList.toggle('show-diff', open);
+    $('#try-tag').setAttribute('aria-expanded', String(open));
+  });
+  $('#try').addEventListener('click', (e) => { if (!e.target.closest('#try-body, .try-diff')) tryTa.focus({ preventScroll: true }); });
   tryRender();
 
   /* ── Write: a writing session, replayed ────────────────────────────── */
