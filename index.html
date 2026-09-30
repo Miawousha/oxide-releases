@@ -91,11 +91,9 @@ code.i { font: 0.86em var(--mono); }
 
 /* ── Hero ───────────────────────────────────────────────────────── */
 .hero { position: relative; overflow: hidden; background: var(--paper); border-bottom: 1px solid var(--line); }
-.hero-top { position: relative; z-index: 1; padding-top: clamp(32px, 6vw, 88px); display: grid; grid-template-columns: minmax(0, 7fr) minmax(0, 5fr); gap: clamp(32px, 5vw, 72px); align-items: center; }
-.hero-rings { pointer-events: none; justify-self: end; width: 100%; max-width: 480px; }
-.hero-rings svg { display: block; width: 100%; height: auto; }
+.hero-top { position: relative; z-index: 1; padding-top: clamp(32px, 6vw, 88px); display: grid; grid-template-columns: minmax(0, 6fr) minmax(0, 5fr); gap: clamp(32px, 5vw, 64px); align-items: center; }
 h1 {
-  font: 600 clamp(2.6rem, 5.2vw, 4.7rem)/1.0 var(--serif);
+  font: 600 clamp(2.6rem, 4.9vw, 4.5rem)/1.0 var(--serif);
   letter-spacing: -0.03em; margin: 0; text-wrap: balance;
 }
 .hmk {
@@ -113,6 +111,24 @@ h1.rendered:hover .hmk { max-width: 2em; opacity: 1; }
 .cta-meta { margin: 14px 0 0; font-size: 13.5px; color: var(--muted); }
 .cta-meta a { color: var(--muted); text-underline-offset: 3px; }
 .cta-meta a:hover { color: var(--ink); }
+
+/* ── Try it: a live editor in the hero ─────────────────────────── */
+.try { position: relative; background: var(--paper); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; font: 13px/1.5 var(--sans); cursor: text; }
+.try:focus-within { box-shadow: 0 0 0 3px rgba(18, 18, 20, 0.08); }
+.try-bar { display: flex; align-items: center; gap: 8px; height: 34px; padding: 0 12px; border-bottom: 1px solid var(--rule); position: relative; }
+.try-bar .win-title { font-size: 12px; }
+.try-body { height: 330px; overflow: auto; position: relative; }
+.try .editor { max-width: none; padding: 20px 24px 40px; font-size: 14.625px; }
+.try .editor .ln { cursor: text; }
+.try textarea { position: absolute; left: 0; top: 0; width: 1px; height: 1px; opacity: 0; border: 0; padding: 0; resize: none; font-size: 16px; pointer-events: none; }
+.try-foot { display: flex; align-items: center; gap: 10px; padding: 7px 12px; border-top: 1px solid var(--rule); font-size: 12px; color: var(--muted); min-height: 34px; }
+.try-foot .spacer { flex: 1; }
+.try-foot code { font: 11.5px var(--mono); color: var(--ink); }
+.try-foot > span:last-child { white-space: nowrap; }
+.try-foot .st { font-weight: 600; color: var(--ink); }
+.try-foot .st.saved { color: var(--add); }
+.try-hint { color: var(--muted); }
+.try:focus-within .try-hint { display: none; }
 
 /* ── The window (a working model of Oxide) ─────────────────────── */
 .stage { position: relative; z-index: 1; margin-top: clamp(40px, 6vw, 72px); padding-bottom: clamp(40px, 5vw, 64px); }
@@ -377,7 +393,6 @@ footer .links { display: flex; gap: 22px; flex-wrap: wrap; }
 /* ── Responsive ─────────────────────────────────────────────────── */
 @media (max-width: 1000px) {
   .hero-top, .ch-grid, .ch-grid.flip, .two, .install-grid, .rd-head { grid-template-columns: minmax(0, 1fr); }
-  .hero-rings { order: -1; justify-self: start; max-width: 200px; }
   .ch-grid.flip .ch-text { order: 0; }
   .rd { grid-template-columns: minmax(0, 1fr); }
   .bl { border-left: 0; border-top: 1px solid var(--rule); }
@@ -385,7 +400,8 @@ footer .links { display: flex; gap: 22px; flex-wrap: wrap; }
 }
 @media (max-width: 760px) {
   .nav-links a:not(.btn) { display: none; }
-  .hero-rings { max-width: 132px; }
+  .try-body { height: 260px; }
+  .try .editor { padding: 14px 14px 32px; font-size: 13px; }
   .win { height: 480px; }
   .win-body { grid-template-columns: minmax(0, 1fr); }
   .side { display: none; }
@@ -453,7 +469,15 @@ FINISH: unreviewed and undocumented is unfinished; this build ends with the fini
       </div>
     </div>
    </div>
-   <div class="hero-rings" aria-hidden="true"><svg viewBox="0 0 1024 1024"><use href="#i-rings"/></svg></div>
+   <div class="try" id="try">
+     <div class="try-bar"><div class="lights" aria-hidden="true"><i></i><i></i><i></i></div><div class="win-title">scratch.md</div></div>
+     <div class="try-body" id="try-body">
+       <label class="sr-only" for="try-ta">Try the editor: type markdown</label>
+       <textarea id="try-ta" spellcheck="false" autocapitalize="off" autocomplete="off"></textarea>
+       <div class="editor" id="try-view" aria-hidden="true"></div>
+     </div>
+     <div class="try-foot"><span class="try-hint">Click and type.</span><span class="st" id="try-st"></span><span class="spacer"></span><span>on disk <code id="try-bytes">—</code></span></div>
+   </div>
   </div>
 
   <div class="wrap stage">
@@ -987,6 +1011,97 @@ Essays, drafts and notes, kept in git. Start with [[plain-text]].
     $('#face .ln.caret')?.scrollIntoView({ block: 'nearest' });
   });
   render();
+
+  /* ── Hero: a live editor. A hidden textarea owns the text (keyboard, IME, paste,
+        undo, the phone keyboard); the view re-renders from it with Oxide's rule:
+        the caret line shows its markdown, every other line renders. ───────── */
+  const tryTa = $('#try-ta'), tryView = $('#try-view'), tryBody = $('#try-body'), trySt = $('#try-st'), tryBytes = $('#try-bytes');
+  const PAGES = [['plain-text', 'essays'], ['slow-tools', 'essays'], ['letter-to-a-new-writer', 'drafts'], ['reading-list', 'notes']];
+  const CARET = '';
+  const tr = { acSel: 0, acOff: false, saveT: 0 };
+  tryTa.value = "# Try it\n\nType anywhere. The line you're on shows its **markdown**; move off it and it renders.\n\n- Enter continues a list\n- Type `[[` to link a page";
+  function tryAc() {
+    const pos = tryTa.selectionStart, v = tryTa.value;
+    const lineStart = v.lastIndexOf('\n', pos - 1) + 1;
+    const m = v.slice(lineStart, pos).match(/\[\[([\w-]*)$/);
+    if (!m || tr.acOff || document.activeElement !== tryTa) return null;
+    const q = m[1].toLowerCase();
+    const hits = PAGES.filter(([n]) => n.includes(q));
+    return hits.length ? { q: m[1], hits } : null;
+  }
+  function tryRender() {
+    const v = tryTa.value, pos = tryTa.selectionStart, focused = document.activeElement === tryTa;
+    const before = v.slice(0, pos);
+    const cl = focused ? before.split('\n').length - 1 : -1;
+    const cc = before.length - before.lastIndexOf('\n') - 1;
+    const ac = tryAc();
+    if (ac) tr.acSel = Math.min(tr.acSel, ac.hits.length - 1);
+    tryView.innerHTML = v.split('\n').map((l, i) => {
+      if (i !== cl) return edLines([l], -1).replace('data-i="0"', `data-i="${i}"`);
+      const kind = /^# /.test(l) ? ' h1' : /^## /.test(l) ? ' h2' : /^> /.test(l) ? ' q' : '';
+      let h = esc(l.slice(0, cc) + CARET + l.slice(cc))
+        .replace(/^(?)(#{1,2} |- |&gt; )/, '$1<span class="mk">$2</span>')
+        .replace(/\*\*([^*]+?)\*\*/g, '<span class="mk">**</span><span class="b">$1</span><span class="mk">**</span>')
+        .replace(/`([^`]+)`/g, '<span class="c"><span class="mk">`</span>$1<span class="mk">`</span></span>')
+        .replace(/\[\[([^\]]*?)\]\]/g, '<span class="mk">[[</span><span class="l">$1</span><span class="mk">]]</span>')
+        .replace(CARET, '<span class="cursor"></span>');
+      if (ac) h += '<div class="ac">' + ac.hits.map(([n, d], j) => `<div class="${j === tr.acSel ? 'on' : ''}">${n}<span>${d}</span></div>`).join('') + '</div>';
+      return `<div class="ln caret${kind}" data-i="${i}">${h}</div>`;
+    }).join('');
+    tryBytes.textContent = new TextEncoder().encode(v).length + ' bytes';
+    if (focused) tryView.querySelector('.cursor')?.scrollIntoView({ block: 'nearest', inline: 'nearest' });
+  }
+  function tryInsert(text, from = tryTa.selectionStart, to = tryTa.selectionEnd) {
+    tryTa.setRangeText(text, from, to, 'end');
+    tryTa.dispatchEvent(new Event('input'));
+  }
+  tryTa.addEventListener('input', () => {
+    tr.acOff = false;
+    trySt.textContent = 'Edited'; trySt.className = 'st';
+    clearTimeout(tr.saveT);
+    tr.saveT = setTimeout(() => { trySt.textContent = 'Saved'; trySt.className = 'st saved'; }, 500);
+    tryRender();
+  });
+  tryTa.addEventListener('keydown', (e) => {
+    const ac = tryAc();
+    if (ac && (e.key === 'ArrowDown' || e.key === 'ArrowUp')) {
+      e.preventDefault();
+      tr.acSel = (tr.acSel + (e.key === 'ArrowDown' ? 1 : ac.hits.length - 1)) % ac.hits.length;
+      return tryRender();
+    }
+    if (ac && (e.key === 'Enter' || e.key === 'Tab')) {
+      e.preventDefault();
+      const pos = tryTa.selectionStart;
+      tryInsert(ac.hits[tr.acSel][0] + ']]', pos - ac.q.length, pos);
+      tr.acSel = 0;
+      return;
+    }
+    if (ac && e.key === 'Escape') { tr.acOff = true; return tryRender(); }
+    if (e.key === 'Enter' && !e.shiftKey && tryTa.selectionStart === tryTa.selectionEnd) {
+      const pos = tryTa.selectionStart, v = tryTa.value;
+      const ls = v.lastIndexOf('\n', pos - 1) + 1;
+      const line = v.slice(ls, pos);
+      if (/^- /.test(line)) {
+        e.preventDefault();
+        if (line === '- ') tryInsert('', ls, pos);
+        else tryInsert('\n- ');
+      }
+    }
+  });
+  ['keyup', 'click', 'focus', 'blur', 'select'].forEach((ev) => tryTa.addEventListener(ev, () => requestAnimationFrame(tryRender)));
+  document.addEventListener('selectionchange', () => { if (document.activeElement === tryTa) tryRender(); });
+  tryBody.addEventListener('mousedown', (e) => {
+    e.preventDefault();
+    const ln = e.target.closest('.ln');
+    const lines = tryTa.value.split('\n');
+    let off = tryTa.value.length;
+    if (ln) { const i = +ln.dataset.i; off = lines.slice(0, i + 1).reduce((a, l) => a + l.length + 1, 0) - 1; }
+    tryTa.focus({ preventScroll: true });
+    tryTa.setSelectionRange(off, off);
+    tryRender();
+  });
+  $('#try').addEventListener('click', (e) => { if (!e.target.closest('#try-body')) tryTa.focus({ preventScroll: true }); });
+  tryRender();
 
   /* ── Write: a writing session, replayed ────────────────────────────── */
   const START = ['# Letter to a new writer', '', 'Keep everything. Commit often.'];
